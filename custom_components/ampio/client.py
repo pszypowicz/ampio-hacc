@@ -8,7 +8,7 @@ from typing import Any, List, Optional, Union
 
 import voluptuous as vol
 
-from homeassistant.components.mqtt import Subscription
+from homeassistant.components.mqtt.subscription import EntitySubscription as Subscription
 from homeassistant.components.mqtt.models import MessageCallbackType
 from homeassistant.const import CONF_CLIENT_ID, CONF_PASSWORD, CONF_PORT, CONF_USERNAME
 from homeassistant.core import Callable, callback
