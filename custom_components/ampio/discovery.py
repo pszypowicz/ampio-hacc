@@ -58,7 +58,7 @@ async def async_start(hass: HomeAssistantType, config_entry=None) -> bool:
             _LOGGER.error("Unable to decode Ampio MQTT Server version")
             return
         version = data.get(ATTR_VERSION, "N/A")
-        device_registry = await hass.helpers.device_registry.async_get_registry()
+        device_registry = await hass.helpers.device_registry.async_get()
         device_registry.async_get_or_create(
             config_entry_id=config_entry.entry_id,
             connections={(CONNECTION_NETWORK_MAC, str("ampio-mqtt"))},
@@ -174,7 +174,7 @@ async def async_setup_device_registry(
     hass: HomeAssistantType, entry: ConfigEntry, device_info: AmpioModuleInfo
 ):
     """Set up device registry feature for a particular config entry."""
-    device_registry = await dr.async_get_registry(hass)
+    device_registry = await dr.async_get(hass)
     return device_registry.async_get_or_create(
         config_entry_id=entry.entry_id, **device_info.as_hass_device()
     )

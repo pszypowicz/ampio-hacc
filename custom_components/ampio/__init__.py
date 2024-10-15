@@ -32,7 +32,7 @@ from homeassistant.helpers.dispatcher import (
     async_dispatcher_send,
 )
 from homeassistant.helpers.entity import Entity
-from homeassistant.helpers.entity_registry import EntityRegistry, async_get_registry
+from homeassistant.helpers.entity_registry import EntityRegistry, async_get
 from homeassistant.helpers.typing import ConfigType, HomeAssistantType
 
 from .client import AmpioAPI, async_setup_discovery

@@ -6,11 +6,15 @@ from homeassistant.components import light
 from homeassistant.components.light import (
     ATTR_BRIGHTNESS,
     ATTR_HS_COLOR,
-    ATTR_WHITE_VALUE,
+    # ATTR_WHITE_VALUE,
     SUPPORT_BRIGHTNESS,
     SUPPORT_COLOR,
-    SUPPORT_WHITE_VALUE,
+    # SUPPORT_WHITE_VALUE,
 )
+
+ATTR_WHITE_VALUE = 255
+SUPPORT_WHITE_VALUE = True
+
 from homeassistant.core import callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.typing import ConfigType, HomeAssistantType
