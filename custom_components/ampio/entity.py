@@ -64,6 +64,18 @@ def resolve_parent(
     return module_device_ids.get(mac, hub_device_id)
 
 
+def parent_needs_repair(stored: str | None, resolved: str, hub_device_id: str) -> bool:
+    """Whether a stored parent should be reported and offered for a delete.
+
+    The repair moves a child from the hub to a module it now resolves to;
+    the registry cannot re-parent it any other way. It never runs in
+    reverse: a resolved hub does not outrank a stored module, because the
+    hub is what an object falls back to when it (temporarily or not) names
+    no module, not a parent a live child should ever be moved to.
+    """
+    return stored is not None and resolved not in (stored, hub_device_id)
+
+
 async def async_turn_on_honoring_pulse(
     client: AmpioClient, obj: AmpioObject | None, object_id: int
 ) -> None:

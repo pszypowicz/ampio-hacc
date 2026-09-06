@@ -21,7 +21,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from custom_components.ampio import async_remove_config_entry_device
 from custom_components.ampio.const import DOMAIN
 from homeassistant.config_entries import ConfigEntryState
-from homeassistant.const import EVENT_HOMEASSISTANT_STOP, STATE_OFF
+from homeassistant.const import EVENT_HOMEASSISTANT_STOP, STATE_OFF, STATE_UNAVAILABLE
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import (
     area_registry as ar,
@@ -784,6 +784,59 @@ async def test_regained_parent_keeps_the_entity_until_the_user_deletes(
     assert moved.id == child.id
     assert moved.parent_device_id == module.id
     assert hass.states.get(pinned_id("switch", 98)).state == STATE_OFF
+
+
+async def test_module_parent_is_kept_when_the_leaf_is_lost(
+    hass: HomeAssistant,
+    mock_client: MagicMock,
+    mock_config_entry: MockConfigEntry,
+    device_registry: dr.DeviceRegistry,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A resolved hub never displaces a child already parented to a module.
+
+    Losing a leaf with no leaf-bearing sibling left on the module makes
+    ``resolve_parent`` return the hub, but the stored module parent is the
+    one that wins: only a resolved module ever repairs a stored parent, so
+    the child stays put, silently, and the removal hook keeps protecting it.
+    """
+    await setup_integration(hass, mock_config_entry)
+
+    module = device_registry.async_get_device_by_identifier(
+        MSENS_IDENTIFIER, mock_config_entry.entry_id
+    )
+    assert module is not None
+    child = device_registry.async_get_child_device_by_identifier(
+        (DOMAIN, unique_id(74)), mock_config_entry.entry_id
+    )
+    assert child is not None
+    assert child.parent_device_id == module.id
+
+    mock_client.objects[74] = replace(
+        mock_client.objects[74], leaf_id="", id_urzadzenia=999
+    )
+    caplog.clear()
+    await hass.config_entries.async_reload(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    state = hass.states.get(pinned_id("switch", 74))
+    assert state is not None
+    assert state.state != STATE_UNAVAILABLE
+
+    kept = device_registry.async_get_child_device_by_identifier(
+        (DOMAIN, unique_id(74)), mock_config_entry.entry_id
+    )
+    assert kept is not None
+    assert kept.id == child.id
+    assert kept.parent_device_id == module.id
+
+    parent_warnings = [
+        record
+        for record in caplog.records
+        if record.levelname == "WARNING" and "Ampio object 74" in record.getMessage()
+    ]
+    assert not parent_warnings
+    assert not await async_remove_config_entry_device(hass, mock_config_entry, kept)
 
 
 async def test_remove_config_entry_device(

@@ -26,7 +26,13 @@ from homeassistant.helpers import device_registry as dr
 
 from .const import DOMAIN, PLATFORMS
 from .data import AmpioConfigEntry, AmpioData
-from .entity import HUB_IDENTIFIER, eligible_objects, module_identifier, resolve_parent
+from .entity import (
+    HUB_IDENTIFIER,
+    eligible_objects,
+    module_identifier,
+    parent_needs_repair,
+    resolve_parent,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -167,9 +173,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: AmpioConfigEntry) -> boo
     # A child device keeps the parent it was created under: the registry
     # cannot re-parent one, and it rejects an entity whose device info
     # names another parent, which would drop the entity from the set. So
-    # the parent already stored wins, and an object that now resolves
-    # elsewhere is reported instead. Deleting the device is the repair,
-    # and the next reload builds it again under the resolved parent.
+    # the parent already stored wins, and a stored parent that differs from
+    # a resolved module parent is reported instead. Deleting the device is
+    # the repair, and the next reload builds it again under the resolved
+    # parent. A resolved hub never displaces a stored module: it is only
+    # what an object falls back to when it names no module, not a parent a
+    # live child should be moved to, so that mismatch stays silent.
     child_parent_ids: dict[str, str] = {}
     for obj in eligible_objects(client):
         child = device_registry.async_get_child_device_by_identifier(
@@ -178,7 +187,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: AmpioConfigEntry) -> boo
         if child is None:
             continue
         child_parent_ids[obj.object_key] = child.parent_device_id
-        if child.parent_device_id != resolve_parent(obj, hub.id, module_device_ids):
+        resolved = resolve_parent(obj, hub.id, module_device_ids)
+        if parent_needs_repair(child.parent_device_id, resolved, hub.id):
             _LOGGER.warning(
                 "Ampio object %s (%s) sits under a device that is no longer its "
                 "parent; delete its device in Home Assistant, and it comes back "
@@ -266,10 +276,12 @@ async def async_remove_config_entry_device(
     The hub always stays. A module device stays while the account still
     receives an object on it, and an object's child device stays while the
     account still receives that object. The one live child that goes is
-    the one whose stored parent is no longer the device its object
-    resolves to: the registry cannot re-parent a child, so the delete is
-    how the user moves it, and the next reload builds it again under the
-    resolved parent with its id, its area, and its name restored.
+    the one whose stored parent differs from a resolved module parent: the
+    registry cannot re-parent a child, so the delete is how the user moves
+    it, and the next reload builds it again under the resolved parent with
+    its id, its area, and its name restored. A resolved hub never outranks
+    a stored module, so a child whose object now resolves to the hub stays
+    protected, exactly like one whose parent still matches.
     """
     data = entry.runtime_data
     live: set[tuple[str, str]] = {HUB_IDENTIFIER}
@@ -277,8 +289,7 @@ async def async_remove_config_entry_device(
         if not obj.is_server_owned and (mac := obj.module_mac) is not None:
             live.add(module_identifier(mac))
         stored = data.child_parent_ids.get(obj.object_key)
-        if stored is None or stored == resolve_parent(
-            obj, data.hub_device_id, data.module_device_ids
-        ):
+        resolved = resolve_parent(obj, data.hub_device_id, data.module_device_ids)
+        if not parent_needs_repair(stored, resolved, data.hub_device_id):
             live.add((DOMAIN, obj.object_key))
     return not any(identifier in live for identifier in device_entry.identifiers)
