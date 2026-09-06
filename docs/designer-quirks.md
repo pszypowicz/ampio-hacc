@@ -14,18 +14,26 @@ The fix, in the current web Designer: touch every affected output individually -
 
 ## The Matter checkbox clears the leaf id
 
-Every object row carries a `leafId`, the pointer to the module output that drives it. The integration reads the module mac out of it, so the leaf id decides which module device an entity sits on. Designer's per-object "Matter" checkbox rewrites that field on every save. A check writes it back from the linked output record and re-syncs the `type` column from the module record. An uncheck saves the row without it, and the M-SERV stores an empty value.
+Every object row carries a `leafId`, the pointer to the module output that drives it. Designer's per-object "Matter" checkbox rewrites that field on every save. A check writes it back from the linked output record and re-syncs the `type` column from the module record. An uncheck saves the row without it, and the M-SERV stores an empty value.
 
-The object survives the uncheck. It keeps its type, its rooms, and its state. The integration keeps its entity, its id, its name, and its area. What it loses is its module. Without a leaf mac the entity moves to the `M-SERV` hub on the next reload, on both account tiers. A re-check in Designer writes the leaf id back, and the entity returns to its module on the reload after that.
+The object survives the uncheck. It keeps its type, its rooms, and its state. The integration keeps its entity, its id, its name, its area, and its module, because the device tree reads `id_urzadzenia`, the Designer module row that every object carries on both account tiers, and not the leaf.
+
+What the uncheck costs is the diagnostics. The leaf id is how the diagnostics download joins an object to its Designer record, so a leafless object carries no record there until you check the box again. It is also where a module device gets the mac in its `Ampio module 0x<MAC>` fallback name, so a module whose objects have all lost their leaf reads `Ampio module <row id>` on a restricted account instead.
 
 So leave the Matter box alone on every object that has an entity here, in either state. To stop the M-SERV's Matter bridge, use "Clear configuration" in Designer's Matter panel. That wipes the bridge's pairing and restarts it unpaired, and it touches no object. A check on a relay also re-syncs the type column from the module record, so a relay whose record lost its Lighting tag comes back as a switch (see the section above).
 
-Verified on server 1865 with a virtual test relay, and pinned by the integration's tests: a leafless object yields an entity on the hub, and a hidden row yields none.
+Verified on server 1865 with a virtual test relay, and pinned by the integration's tests: a leafless object keeps its module, and a hidden row yields nothing.
+
+## Moving an object to another module
+
+Home Assistant cannot move a child device to another parent. When you move an object to another module in Designer, or a replacement gives a module a new row, the object's device keeps its old parent, and Home Assistant skips the entity on the next restart with a log line that ends "remove the child device first".
+
+Delete the object's device under Settings, then Devices and services. On the next restart it comes back under the new module, with its id, its area, and its name restored. The removal hook offers the delete for exactly such devices. If that object was the last one on its old module, the old module device stays behind empty, and the hook offers you that delete too.
 
 ## The stability contract
 
 Ampio accounts upgrade and downgrade between the admin login and app-created users. The integration therefore derives everything that defines an entity's platform or the device topology from data the restricted tier receives.
 
-Entity ids are exempt from that rule, because the integration writes them itself. Home Assistant normally builds an entity id from the area name, the device name, and the entity name. An Ampio entity carries its own id instead, `<domain>.ampio_<server mac>_obj_<object id>`, which is the same string as its unique id. No name reaches it. Rename a device, move it to another area, or switch the account tier, and every id holds still.
+Entity ids are exempt from that rule, because the integration writes them itself. Home Assistant normally builds an entity id from the area name, the device name, and the entity name. An Ampio entity carries its own id instead, `<domain>.ampio_obj_<object id>`, which is the same string as its unique id. No name reaches it. Rename a device, move it to another area, or switch the account tier, and every id holds still.
 
-That frees the device name. A module takes the name you gave it in Ampio Designer where the admin-only module catalogue answers, and falls back to `Ampio module 0x<MAC>` on a restricted account. The hub is always `M-SERV`. The catalogue also decorates the model, the firmware and hardware versions, and the serial number. All of those follow the account tier, so a tier change renames a device in the interface and moves nothing else.
+That frees the device name. An object device takes the name you gave the object in the Ampio app. A module takes the name you gave it in Ampio Designer where the admin-only module catalogue answers, and falls back to `Ampio module 0x<MAC>` on a restricted account. The hub is always `M-SERV`. The catalogue also decorates the module's model, the firmware and hardware versions, and the serial number. All of those follow the account tier, so a tier change renames a module in the interface and moves nothing else. The parent of an object device derives from the Designer module row id, which both tiers receive, so no tier change moves a device either. Home Assistant cannot move a child device to another parent, so the one thing that does move an object between modules is a Designer edit followed by the delete described above.

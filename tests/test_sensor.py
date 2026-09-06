@@ -32,12 +32,13 @@ from homeassistant.helpers import device_registry as dr, entity_registry as er
 
 from . import setup_integration
 from .conftest import (
+    HUB_IDENTIFIER,
     MSENS_IDENTIFIER,
     MSENS_MAC_NAME,
-    MSERV_MAC,
     emit,
     make_object,
     pinned_id,
+    unique_id,
 )
 
 TEMPERATURE_ENTITY_ID = pinned_id("sensor", 36)
@@ -249,10 +250,12 @@ async def test_unexposable_objects_are_skipped(
 
 
 @pytest.mark.parametrize(
-    "leaf_id",
+    ("leaf_id", "id_urzadzenia"),
     [
-        pytest.param("0_nomac_temp_0_1", id="unparseable-module-mac"),
-        pytest.param("0_1_temp_0_1", id="server-owned"),
+        # A row naming no module has no module device to hang under.
+        pytest.param("0_nomac_temp_0_1", None, id="no-module-row"),
+        # The M-SERV's own leaf outranks whatever row the object carries.
+        pytest.param("0_1_temp_0_1", 17, id="server-owned"),
     ],
 )
 async def test_hub_anchored_objects(
@@ -262,25 +265,35 @@ async def test_hub_anchored_objects(
     device_registry: dr.DeviceRegistry,
     entity_registry: er.EntityRegistry,
     leaf_id: str,
+    id_urzadzenia: int | None,
 ) -> None:
-    """The M-SERV's own objects and unresolvable leafs attach to the hub."""
+    """The M-SERV's own objects and rows naming no module get a child of the hub."""
     mock_client.objects[500] = make_object(
-        500, "temp", 1, leaf_id=leaf_id, funkcja=5, opis_menu="Hub sensor"
+        500,
+        "temp",
+        1,
+        leaf_id=leaf_id,
+        id_urzadzenia=id_urzadzenia,
+        funkcja=5,
+        opis_menu="Hub sensor",
     )
 
     await setup_integration(hass, mock_config_entry)
 
     hub = device_registry.async_get_device_by_identifier(
-        (DOMAIN, MSERV_MAC), mock_config_entry.entry_id
+        HUB_IDENTIFIER, mock_config_entry.entry_id
     )
     assert hub is not None
     entity_id = entity_registry.async_get_entity_id(
-        Platform.SENSOR, DOMAIN, f"{MSERV_MAC}_obj_500"
+        Platform.SENSOR, DOMAIN, unique_id(500)
     )
     assert entity_id is not None
     entity_entry = entity_registry.async_get(entity_id)
     assert entity_entry is not None
-    assert entity_entry.device_id == hub.id
+    assert entity_entry.device_id is not None
+    child = device_registry.async_get(entity_entry.device_id)
+    assert isinstance(child, dr.ChildDeviceEntry)
+    assert child.parent_device_id == hub.id
 
 
 async def test_module_without_catalogue_row_gets_bare_device(
@@ -290,7 +303,7 @@ async def test_module_without_catalogue_row_gets_bare_device(
     device_registry: dr.DeviceRegistry,
     entity_registry: er.EntityRegistry,
 ) -> None:
-    """A leaf-derived mac with no module row still keys its own device."""
+    """A module row the catalogue does not list still keys its own device."""
     mock_client.objects[500] = make_object(
         500,
         "temp",
@@ -303,28 +316,48 @@ async def test_module_without_catalogue_row_gets_bare_device(
     await setup_integration(hass, mock_config_entry)
 
     device = device_registry.async_get_device_by_identifier(
-        (DOMAIN, f"{MSERV_MAC}:{0xDEAD}"), mock_config_entry.entry_id
+        (DOMAIN, "module:99"), mock_config_entry.entry_id
     )
     assert device is not None
     assert device.name == "Ampio module 0xDEAD"
     assert device.model is None
     entity_id = entity_registry.async_get_entity_id(
-        Platform.SENSOR, DOMAIN, f"{MSERV_MAC}_obj_500"
+        Platform.SENSOR, DOMAIN, unique_id(500)
     )
     assert entity_id is not None
     entity_entry = entity_registry.async_get(entity_id)
     assert entity_entry is not None
-    assert entity_entry.device_id == device.id
+    assert entity_entry.device_id is not None
+    child = device_registry.async_get(entity_entry.device_id)
+    assert isinstance(child, dr.ChildDeviceEntry)
+    assert child.parent_device_id == device.id
 
 
 @pytest.mark.parametrize(
-    ("changes", "expected_model"),
+    ("changes", "strip_leaf_ids", "expected_name", "expected_model"),
     [
-        pytest.param({"nazwa_urzadzenia": None}, "M-SENS", id="nameless-module"),
+        pytest.param(
+            {"nazwa_urzadzenia": None},
+            False,
+            MSENS_MAC_NAME,
+            "M-SENS",
+            id="nameless-module",
+        ),
         # The device_id join key is volatile across resyncs; the leaf-derived
         # mac is authoritative, so a disagreeing row must not misattribute
         # another module's metadata to this device.
-        pytest.param({"mac": 99999}, None, id="disagreeing-mac"),
+        pytest.param({"mac": 99999}, False, MSENS_MAC_NAME, None, id="disagreeing-mac"),
+        # Designer cleared the leaf on every object of the row, so no mac is
+        # left to name the device and the row id is what remains. The
+        # catalogue join still stands: it is gated on a leaf mac the objects
+        # no longer carry.
+        pytest.param(
+            {"nazwa_urzadzenia": None},
+            True,
+            "Ampio module 17",
+            "M-SENS",
+            id="no-leaf-mac",
+        ),
     ],
 )
 async def test_module_name_falls_back_to_mac(
@@ -333,10 +366,17 @@ async def test_module_name_falls_back_to_mac(
     mock_config_entry: MockConfigEntry,
     device_registry: dr.DeviceRegistry,
     changes: dict[str, int | None],
+    strip_leaf_ids: bool,
+    expected_name: str,
     expected_model: str | None,
 ) -> None:
-    """A row that names nothing leaves the device on its mac-derived name."""
+    """A row that names nothing leaves the device on its mac, then on its row id."""
     mock_client.modules[17] = replace(mock_client.modules[17], **changes)
+    if strip_leaf_ids:
+        mock_client.objects = {
+            oid: replace(obj, leaf_id="") if obj.id_urzadzenia == 17 else obj
+            for oid, obj in mock_client.objects.items()
+        }
 
     await setup_integration(hass, mock_config_entry)
 
@@ -344,7 +384,7 @@ async def test_module_name_falls_back_to_mac(
         MSENS_IDENTIFIER, mock_config_entry.entry_id
     )
     assert device is not None
-    assert device.name == MSENS_MAC_NAME
+    assert device.name == expected_name
     assert device.model == expected_model
 
 
@@ -361,7 +401,7 @@ async def test_pulse_time_diagnostic(
     none.
     """
     for oid in (72, 82):
-        mock_client.objects[oid] = replace(mock_client.objects[oid], pulse_ms=5000)
+        mock_client.objects[oid] = replace(mock_client.objects[oid], czas=500)
     await setup_integration(hass, mock_config_entry)
 
     entry = entity_registry.async_get(pinned_id("sensor", 150, "_pulse"))
@@ -372,5 +412,9 @@ async def test_pulse_time_diagnostic(
     assert float(state.state) == 3.0
 
     for object_id in (149, 72, 82):
-        unique_id = f"{MSERV_MAC}_obj_{object_id}_pulse"
-        assert entity_registry.async_get_entity_id("sensor", DOMAIN, unique_id) is None
+        assert (
+            entity_registry.async_get_entity_id(
+                "sensor", DOMAIN, unique_id(object_id, "_pulse")
+            )
+            is None
+        )

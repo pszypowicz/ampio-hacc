@@ -1,13 +1,20 @@
 {
   "domain": "ampio",
   "name": "Ampio",
-  "codeowners": ["@pszypowicz"],
+  "codeowners": [
+    "@pszypowicz"
+  ],
   "config_flow": true,
   "documentation": "https://github.com/pszypowicz/ampio-homeassistant",
   "integration_type": "hub",
   "iot_class": "local_push",
-  "loggers": ["ampio_mqtt"],
+  "loggers": [
+    "ampio_mqtt"
+  ],
   "quality_scale": "bronze",
-  "requirements": ["ampio-mqtt==0.43.0"],
-  "version": "0.0.13"
+  "requirements": [
+    "ampio-mqtt==0.47.0"
+  ],
+  "single_config_entry": true,
+  "version": "0.0.14"
 }

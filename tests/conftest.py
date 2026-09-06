@@ -47,11 +47,19 @@ def snapshot(snapshot: SnapshotAssertion) -> SnapshotAssertion:
 
 
 MSERV_MAC = "47846"
-MSENS_IDENTIFIER = (DOMAIN, f"{MSERV_MAC}:52111")
+# Identifiers carry no server mac: the hub is one constant, a module is its
+# Designer row id, an object is its Designer id.
+HUB_IDENTIFIER = (DOMAIN, "hub")
+MSENS_IDENTIFIER = (DOMAIN, "module:17")
 # The module device is named from the admin-only module catalogue, and it
 # falls back to the leaf-embedded mac that both account tiers receive.
 MSENS_DEVICE_NAME = "m-sens salon"
 MSENS_MAC_NAME = "Ampio module 0xCB8F"
+
+
+def unique_id(oid: int, suffix: str = "") -> str:
+    """The unique id of an object's entity: the object key alone."""
+    return f"obj_{oid}{suffix}"
 
 
 def pinned_id(domain: str, oid: int, suffix: str = "") -> str:
@@ -60,7 +68,7 @@ def pinned_id(domain: str, oid: int, suffix: str = "") -> str:
     The integration carries this id into the add, so no device name and no
     area name compose it. It is the unique id with the domain in front.
     """
-    return f"{domain}.ampio_{MSERV_MAC}_obj_{oid}{suffix}"
+    return f"{domain}.ampio_{unique_id(oid, suffix)}"
 
 
 # A sweep that read every module and joined nothing.
@@ -100,7 +108,7 @@ def make_object(
     matter_device_type: int | None = None,
     lammel: int | None = None,
     thermostat: ThermostatState | None = None,
-    pulse_ms: int = 0,
+    czas: int = 0,
 ) -> AmpioObject:
     """Build a classified object the way discovery would."""
     return AmpioObject(
@@ -116,7 +124,7 @@ def make_object(
         matter_device_type=matter_device_type,
         lammel=lammel,
         thermostat=thermostat,
-        pulse_ms=pulse_ms,
+        czas=czas,
     )
 
 
@@ -189,7 +197,7 @@ DEFAULT_OBJECTS = (
         opis_menu="Dzwonek",
         state="0",
         params=1 << 15,
-        pulse_ms=3000,
+        czas=300,
     ),
     # A second Designer view of the output the previous object drives.
     # Designer lets one output carry several views, and every view repeats
@@ -203,7 +211,7 @@ DEFAULT_OBJECTS = (
         opis_menu="Dzwonek",
         state="0",
         params=1 << 15,
-        pulse_ms=3000,
+        czas=300,
     ),
     make_object(62, "detekcja", 0, leaf_id="0_cb8f_det_0_2", funkcja=2, state="0"),
     make_object(
@@ -397,13 +405,17 @@ def mock_client_class() -> Generator[MagicMock]:
         client.fetch_rooms.return_value = dict(DEFAULT_ROOMS)
         client.resolve_records.return_value = EMPTY_SWEEP
 
-        # Mirrors the real resolver's documented contract over the seeded
-        # catalogue: join by device_id, gated on the leaf-derived mac.
+        # Mirrors AmpioClient.module_for over the seeded catalogue: join by
+        # id_urzadzenia, and where the object carries a leaf mac, drop a row
+        # whose mac disagrees. A leafless object has no mac to gate on, so
+        # its join stands.
         def module_for(obj: AmpioObject) -> AmpioModule | None:
             if obj.id_urzadzenia is None:
                 return None
             module = client.modules.get(obj.id_urzadzenia)
-            if module is None or module.mac is None or module.mac != obj.module_mac:
+            if module is None:
+                return None
+            if obj.module_mac is not None and module.mac != obj.module_mac:
                 return None
             return module
 

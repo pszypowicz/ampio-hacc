@@ -1,5 +1,5 @@
 # serializer version: 1
-# name: test_all_entities[switch.ampio_47846_obj_121-entry]
+# name: test_all_entities[switch.ampio_obj_121-entry]
   EntityRegistryEntrySnapshot({
     'aliases': list([
       None,
@@ -13,7 +13,7 @@
     'disabled_by': None,
     'domain': 'switch',
     'entity_category': None,
-    'entity_id': 'switch.ampio_47846_obj_121',
+    'entity_id': 'switch.ampio_obj_121',
     'has_entity_name': True,
     'hidden_by': None,
     'icon': None,
@@ -26,30 +26,30 @@
     }),
     'original_device_class': None,
     'original_icon': None,
-    'original_name': 'Dom pusty',
+    'original_name': None,
     'platform': 'ampio',
     'previous_unique_id': None,
-    'suggested_object_id': 'ampio_47846_obj_121',
+    'suggested_object_id': 'ampio_obj_121',
     'supported_features': 0,
     'translation_key': 'flag',
-    'unique_id': '47846_obj_121',
+    'unique_id': 'obj_121',
     'unit_of_measurement': None,
   })
 # ---
-# name: test_all_entities[switch.ampio_47846_obj_121-state]
+# name: test_all_entities[switch.ampio_obj_121-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'M-SERV Dom pusty',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Dom pusty',
     }),
     'context': <ANY>,
-    'entity_id': 'switch.ampio_47846_obj_121',
+    'entity_id': 'switch.ampio_obj_121',
     'last_changed': <ANY>,
     'last_reported': <ANY>,
     'last_updated': <ANY>,
     'state': 'off',
   })
 # ---
-# name: test_all_entities[switch.ampio_47846_obj_61-entry]
+# name: test_all_entities[switch.ampio_obj_61-entry]
   EntityRegistryEntrySnapshot({
     'aliases': list([
       None,
@@ -63,7 +63,7 @@
     'disabled_by': None,
     'domain': 'switch',
     'entity_category': None,
-    'entity_id': 'switch.ampio_47846_obj_61',
+    'entity_id': 'switch.ampio_obj_61',
     'has_entity_name': True,
     'hidden_by': None,
     'icon': None,
@@ -76,30 +76,30 @@
     }),
     'original_device_class': None,
     'original_icon': None,
-    'original_name': 'Podlewanie',
+    'original_name': None,
     'platform': 'ampio',
     'previous_unique_id': None,
-    'suggested_object_id': 'ampio_47846_obj_61',
+    'suggested_object_id': 'ampio_obj_61',
     'supported_features': 0,
     'translation_key': 'flag',
-    'unique_id': '47846_obj_61',
+    'unique_id': 'obj_61',
     'unit_of_measurement': None,
   })
 # ---
-# name: test_all_entities[switch.ampio_47846_obj_61-state]
+# name: test_all_entities[switch.ampio_obj_61-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'm-sens salon Podlewanie',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Podlewanie',
     }),
     'context': <ANY>,
-    'entity_id': 'switch.ampio_47846_obj_61',
+    'entity_id': 'switch.ampio_obj_61',
     'last_changed': <ANY>,
     'last_reported': <ANY>,
     'last_updated': <ANY>,
     'state': 'on',
   })
 # ---
-# name: test_all_entities[switch.ampio_47846_obj_74-entry]
+# name: test_all_entities[switch.ampio_obj_74-entry]
   EntityRegistryEntrySnapshot({
     'aliases': list([
       None,
@@ -113,7 +113,7 @@
     'disabled_by': None,
     'domain': 'switch',
     'entity_category': None,
-    'entity_id': 'switch.ampio_47846_obj_74',
+    'entity_id': 'switch.ampio_obj_74',
     'has_entity_name': True,
     'hidden_by': None,
     'icon': None,
@@ -129,28 +129,28 @@
     'original_name': None,
     'platform': 'ampio',
     'previous_unique_id': None,
-    'suggested_object_id': 'ampio_47846_obj_74',
+    'suggested_object_id': 'ampio_obj_74',
     'supported_features': 0,
     'translation_key': None,
-    'unique_id': '47846_obj_74',
+    'unique_id': 'obj_74',
     'unit_of_measurement': None,
   })
 # ---
-# name: test_all_entities[switch.ampio_47846_obj_74-state]
+# name: test_all_entities[switch.ampio_obj_74-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
       <EntityStateAttribute.DEVICE_CLASS: 'device_class'>: 'switch',
-      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'm-sens salon',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Object 74',
     }),
     'context': <ANY>,
-    'entity_id': 'switch.ampio_47846_obj_74',
+    'entity_id': 'switch.ampio_obj_74',
     'last_changed': <ANY>,
     'last_reported': <ANY>,
     'last_updated': <ANY>,
     'state': 'on',
   })
 # ---
-# name: test_all_entities[switch.ampio_47846_obj_75-entry]
+# name: test_all_entities[switch.ampio_obj_75-entry]
   EntityRegistryEntrySnapshot({
     'aliases': list([
       None,
@@ -164,7 +164,7 @@
     'disabled_by': None,
     'domain': 'switch',
     'entity_category': None,
-    'entity_id': 'switch.ampio_47846_obj_75',
+    'entity_id': 'switch.ampio_obj_75',
     'has_entity_name': True,
     'hidden_by': None,
     'icon': None,
@@ -177,24 +177,24 @@
     }),
     'original_device_class': <SwitchDeviceClass.OUTLET: 'outlet'>,
     'original_icon': None,
-    'original_name': 'Gniazdo Taras',
+    'original_name': None,
     'platform': 'ampio',
     'previous_unique_id': None,
-    'suggested_object_id': 'ampio_47846_obj_75',
+    'suggested_object_id': 'ampio_obj_75',
     'supported_features': 0,
     'translation_key': None,
-    'unique_id': '47846_obj_75',
+    'unique_id': 'obj_75',
     'unit_of_measurement': None,
   })
 # ---
-# name: test_all_entities[switch.ampio_47846_obj_75-state]
+# name: test_all_entities[switch.ampio_obj_75-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
       <EntityStateAttribute.DEVICE_CLASS: 'device_class'>: 'outlet',
-      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'm-sens salon Gniazdo Taras',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Gniazdo Taras',
     }),
     'context': <ANY>,
-    'entity_id': 'switch.ampio_47846_obj_75',
+    'entity_id': 'switch.ampio_obj_75',
     'last_changed': <ANY>,
     'last_reported': <ANY>,
     'last_updated': <ANY>,

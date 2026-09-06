@@ -11,7 +11,7 @@ from pytest_homeassistant_custom_component.common import (
 
 from custom_components.ampio.const import DOMAIN
 from homeassistant.config_entries import SOURCE_USER
-from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_USERNAME
+from homeassistant.const import CONF_HOST
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 
@@ -95,29 +95,24 @@ async def test_user_flow_errors_and_recovers(
 
 
 @pytest.mark.usefixtures("mock_client_class")
-async def test_already_configured(
+async def test_second_entry_is_refused(
     hass: HomeAssistant,
     mock_config_entry: MockConfigEntry,
     mock_setup_entry: MagicMock,
 ) -> None:
-    """Re-adding a configured M-SERV aborts, refreshes the data, and reloads."""
+    """One M-SERV per Home Assistant: a second flow aborts before its form.
+
+    Object ids are unique per server only, and no identity carries the
+    server mac, so a second entry would collide on every unique id.
+    """
     mock_config_entry.add_to_hass(hass)
     await hass.config_entries.async_setup(mock_config_entry.entry_id)
-    new_input = {
-        CONF_HOST: "ampio-new.test",
-        CONF_USERNAME: USER_INPUT[CONF_USERNAME],
-        CONF_PASSWORD: "new-pass",
-    }
 
     result = await hass.config_entries.flow.async_init(
         DOMAIN, context={"source": SOURCE_USER}
     )
-    result = await hass.config_entries.flow.async_configure(
-        result["flow_id"], new_input
-    )
-    await hass.async_block_till_done()
 
     assert result["type"] is FlowResultType.ABORT
-    assert result["reason"] == "already_configured"
-    assert dict(mock_config_entry.data) == new_input
-    assert mock_setup_entry.call_count == 2
+    assert result["reason"] == "single_instance_allowed"
+    assert dict(mock_config_entry.data) == USER_INPUT
+    assert mock_setup_entry.call_count == 1

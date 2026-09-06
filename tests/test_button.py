@@ -19,7 +19,7 @@ from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import entity_registry as er
 
 from . import setup_integration
-from .conftest import MSERV_MAC, pinned_id
+from .conftest import pinned_id, unique_id
 
 RELAY_ENTITY_ID = pinned_id("button", 150)
 FLAG_ENTITY_ID = pinned_id("button", 149)
@@ -82,9 +82,9 @@ async def test_bell_wins_over_light_tag(
     with patch("custom_components.ampio.PLATFORMS", [Platform.BUTTON, Platform.LIGHT]):
         await setup_integration(hass, mock_config_entry)
 
-    unique_id = f"{MSERV_MAC}_obj_73"
-    assert entity_registry.async_get_entity_id("button", DOMAIN, unique_id) is not None
-    assert entity_registry.async_get_entity_id("light", DOMAIN, unique_id) is None
+    oid = unique_id(73)
+    assert entity_registry.async_get_entity_id("button", DOMAIN, oid) is not None
+    assert entity_registry.async_get_entity_id("light", DOMAIN, oid) is None
 
 
 async def test_bell_flag_is_not_a_switch(
@@ -97,9 +97,9 @@ async def test_bell_flag_is_not_a_switch(
     with patch("custom_components.ampio.PLATFORMS", [Platform.BUTTON, Platform.SWITCH]):
         await setup_integration(hass, mock_config_entry)
 
-    unique_id = f"{MSERV_MAC}_obj_149"
-    assert entity_registry.async_get_entity_id("button", DOMAIN, unique_id) is not None
-    assert entity_registry.async_get_entity_id("switch", DOMAIN, unique_id) is None
+    oid = unique_id(149)
+    assert entity_registry.async_get_entity_id("button", DOMAIN, oid) is not None
+    assert entity_registry.async_get_entity_id("switch", DOMAIN, oid) is None
 
 
 @pytest.mark.usefixtures("button_only")

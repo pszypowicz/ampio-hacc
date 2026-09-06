@@ -1,5 +1,5 @@
 # serializer version: 1
-# name: test_all_entities[cover.ampio_47846_obj_81-entry]
+# name: test_all_entities[cover.ampio_obj_81-entry]
   EntityRegistryEntrySnapshot({
     'aliases': list([
       None,
@@ -13,7 +13,7 @@
     'disabled_by': None,
     'domain': 'cover',
     'entity_category': None,
-    'entity_id': 'cover.ampio_47846_obj_81',
+    'entity_id': 'cover.ampio_obj_81',
     'has_entity_name': True,
     'hidden_by': None,
     'icon': None,
@@ -26,33 +26,33 @@
     }),
     'original_device_class': <CoverDeviceClass.SHUTTER: 'shutter'>,
     'original_icon': None,
-    'original_name': 'Roleta Sypialnia',
+    'original_name': None,
     'platform': 'ampio',
     'previous_unique_id': None,
-    'suggested_object_id': 'ampio_47846_obj_81',
+    'suggested_object_id': 'ampio_obj_81',
     'supported_features': <CoverEntityFeature: 11>,
     'translation_key': None,
-    'unique_id': '47846_obj_81',
+    'unique_id': 'obj_81',
     'unit_of_measurement': None,
   })
 # ---
-# name: test_all_entities[cover.ampio_47846_obj_81-state]
+# name: test_all_entities[cover.ampio_obj_81-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
       <EntityStateAttribute.DEVICE_CLASS: 'device_class'>: 'shutter',
-      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'm-sens salon Roleta Sypialnia',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Roleta Sypialnia',
       <CoverEntityStateAttribute.IS_CLOSED: 'is_closed'>: None,
       <EntityStateAttribute.SUPPORTED_FEATURES: 'supported_features'>: <CoverEntityFeature: 11>,
     }),
     'context': <ANY>,
-    'entity_id': 'cover.ampio_47846_obj_81',
+    'entity_id': 'cover.ampio_obj_81',
     'last_changed': <ANY>,
     'last_reported': <ANY>,
     'last_updated': <ANY>,
     'state': 'unknown',
   })
 # ---
-# name: test_all_entities[cover.ampio_47846_obj_82-entry]
+# name: test_all_entities[cover.ampio_obj_82-entry]
   EntityRegistryEntrySnapshot({
     'aliases': list([
       None,
@@ -66,7 +66,7 @@
     'disabled_by': None,
     'domain': 'cover',
     'entity_category': None,
-    'entity_id': 'cover.ampio_47846_obj_82',
+    'entity_id': 'cover.ampio_obj_82',
     'has_entity_name': True,
     'hidden_by': None,
     'icon': None,
@@ -79,34 +79,34 @@
     }),
     'original_device_class': <CoverDeviceClass.SHUTTER: 'shutter'>,
     'original_icon': None,
-    'original_name': 'Roleta Kuchnia',
+    'original_name': None,
     'platform': 'ampio',
     'previous_unique_id': None,
-    'suggested_object_id': 'ampio_47846_obj_82',
+    'suggested_object_id': 'ampio_obj_82',
     'supported_features': <CoverEntityFeature: 15>,
     'translation_key': None,
-    'unique_id': '47846_obj_82',
+    'unique_id': 'obj_82',
     'unit_of_measurement': None,
   })
 # ---
-# name: test_all_entities[cover.ampio_47846_obj_82-state]
+# name: test_all_entities[cover.ampio_obj_82-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
       <CoverEntityStateAttribute.CURRENT_POSITION: 'current_position'>: 35,
       <EntityStateAttribute.DEVICE_CLASS: 'device_class'>: 'shutter',
-      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'm-sens salon Roleta Kuchnia',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Roleta Kuchnia',
       <CoverEntityStateAttribute.IS_CLOSED: 'is_closed'>: False,
       <EntityStateAttribute.SUPPORTED_FEATURES: 'supported_features'>: <CoverEntityFeature: 15>,
     }),
     'context': <ANY>,
-    'entity_id': 'cover.ampio_47846_obj_82',
+    'entity_id': 'cover.ampio_obj_82',
     'last_changed': <ANY>,
     'last_reported': <ANY>,
     'last_updated': <ANY>,
     'state': 'open',
   })
 # ---
-# name: test_all_entities[cover.ampio_47846_obj_83-entry]
+# name: test_all_entities[cover.ampio_obj_83-entry]
   EntityRegistryEntrySnapshot({
     'aliases': list([
       None,
@@ -120,7 +120,7 @@
     'disabled_by': None,
     'domain': 'cover',
     'entity_category': None,
-    'entity_id': 'cover.ampio_47846_obj_83',
+    'entity_id': 'cover.ampio_obj_83',
     'has_entity_name': True,
     'hidden_by': None,
     'icon': None,
@@ -133,28 +133,28 @@
     }),
     'original_device_class': <CoverDeviceClass.BLIND: 'blind'>,
     'original_icon': None,
-    'original_name': 'Zaluzja Goscinny',
+    'original_name': None,
     'platform': 'ampio',
     'previous_unique_id': None,
-    'suggested_object_id': 'ampio_47846_obj_83',
+    'suggested_object_id': 'ampio_obj_83',
     'supported_features': <CoverEntityFeature: 255>,
     'translation_key': None,
-    'unique_id': '47846_obj_83',
+    'unique_id': 'obj_83',
     'unit_of_measurement': None,
   })
 # ---
-# name: test_all_entities[cover.ampio_47846_obj_83-state]
+# name: test_all_entities[cover.ampio_obj_83-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
       <CoverEntityStateAttribute.CURRENT_POSITION: 'current_position'>: 70,
       <CoverEntityStateAttribute.CURRENT_TILT_POSITION: 'current_tilt_position'>: 40,
       <EntityStateAttribute.DEVICE_CLASS: 'device_class'>: 'blind',
-      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'm-sens salon Zaluzja Goscinny',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Zaluzja Goscinny',
       <CoverEntityStateAttribute.IS_CLOSED: 'is_closed'>: False,
       <EntityStateAttribute.SUPPORTED_FEATURES: 'supported_features'>: <CoverEntityFeature: 255>,
     }),
     'context': <ANY>,
-    'entity_id': 'cover.ampio_47846_obj_83',
+    'entity_id': 'cover.ampio_obj_83',
     'last_changed': <ANY>,
     'last_reported': <ANY>,
     'last_updated': <ANY>,

@@ -12,9 +12,16 @@ class AmpioData:
     """Runtime data for one Ampio server."""
 
     client: AmpioClient
-    # The server's identity key; scopes unique_ids and device identifiers so
-    # two servers on one Home Assistant instance never collide.
-    prefix: str
+    # Registry ids the object child devices parent to: the hub, and one
+    # module device per Designer module row. Setup fills them before the
+    # platforms load.
+    hub_device_id: str
+    module_device_ids: dict[int, str]
+    # The app room of each object, from the tier-shared room tables. It
+    # seeds a child device's area once, at the device's first creation.
+    rooms: dict[int, str]
+    # The Designer row of the M-SERV itself. Its objects sit on the hub.
+    mserv_id: int | None
 
 
 type AmpioConfigEntry = ConfigEntry[AmpioData]

@@ -31,15 +31,15 @@ Manual steps:
 2. Add `https://github.com/pszypowicz/ampio-homeassistant` as a custom repository (type: Integration).
 3. Install "Ampio" and restart Home Assistant.
 
-Requires Home Assistant 2026.8.0 or newer. `ampio-mqtt` is installed automatically.
+Requires Home Assistant 2026.9.0 or newer. `ampio-mqtt` is installed automatically.
 
 ### Updating
 
 Every `0.0.x` release is beta. None of them carries a migration, so an update can change device names or the entity set with no upgrade path. Take a backup before you update.
 
-Your entity ids survive an update, and your automations keep working. Home Assistant builds an entity id once and keeps it after that.
+Your entity ids survive an update unless the release note says otherwise. Home Assistant builds an entity id once and keeps it after that. Version 0.0.14 changed the id form and the device tree. Delete the Ampio integration entry before you update to 0.0.14, and add it again afterwards. See the release note for the full steps.
 
-If an update leaves you with missing entities or entities that stay unavailable, remove the integration and add it again. That is the supported first step, not a last resort. Home Assistant remembers a removed entity for 30 days, so a re-add restores your entity ids, your renames, and your areas.
+If an update leaves you with missing entities or entities that stay unavailable, remove the integration and add it again. That is the supported first step, not a last resort. Home Assistant remembers a removed entity for 30 days, so a re-add restores your entity ids, your renames, and your areas within one id form.
 
 See [docs/stale-entities.md](docs/stale-entities.md) to clean up an entity Ampio Designer no longer has, or to learn what happens to your ids when a release changes their form.
 
@@ -49,15 +49,19 @@ See [docs/stale-entities.md](docs/stale-entities.md) to clean up an entity Ampio
 2. In Home Assistant, go to Settings -> Devices & Services -> Add Integration -> Ampio.
 3. Enter the M-SERV host and that user's MQTT credentials.
 
-Devices appear as a hub for the M-SERV and one device per Ampio module. A module takes the name you gave it in Ampio Designer, or `Ampio module 0x<MAC>` when your account is not an administrator one. Every entity attaches to the module that carries its object, or to the hub for the M-SERV's own objects. Entities are named as in the Ampio app.
+Devices appear as a hub for the M-SERV, one device per Ampio module, and one device per Ampio object under its module. An object device takes the name you gave the object in the Ampio app, and it takes the object's app room as its area when Home Assistant creates it. After that the area is yours: the integration never moves a device. A module takes the name you gave it in Ampio Designer, or `Ampio module 0x<MAC>` when your account is not an administrator one. The M-SERV's own objects sit under the hub. The tree follows the module each object belongs to in Ampio Designer. If you move an object to another module, or a replacement gives a module a new row in Designer, delete the object's device in Home Assistant after the next restart; it comes back under the new module with its area and name.
 
-Rename the devices and assign the areas to suit yourself. Nothing you do there moves an entity id. Home Assistant normally builds an id from the area and the device name, but an Ampio entity carries its own: `<domain>.ampio_<server mac>_obj_<object id>`, the same string as its unique id. The ids are not pretty, and they never change. Your automations keep working through a rename, an area move, and an Ampio account tier change alike.
+Home Assistant matches rooms to areas by name. If your Ampio rooms and your areas differ in spelling, rename one side before you add the integration, or move the devices afterwards.
+
+Rename the devices and assign the areas to suit yourself. Nothing you do there moves an entity id. Home Assistant normally builds an id from the area and the device name, but an Ampio entity carries its own: `<domain>.ampio_obj_<object id>`, the same string as its unique id. The ids are not pretty, and they never change. Your automations keep working through a rename, an area move, an Ampio account tier change, and an M-SERV replacement alike.
+
+One M-SERV per Home Assistant. Object ids are unique per server only, so the integration allows one entry.
 
 One physical output can carry several objects in Ampio Designer. Each object gets its own entity.
 
 If a relay tagged as a light in Designer surfaces as a switch, see [docs/designer-quirks.md](docs/designer-quirks.md).
 
-Do not toggle an object's Matter checkbox in Designer once the object has an entity here. Unchecking it clears the object's leaf id, and the entity then moves to the M-SERV hub until you check the box again. To stop the M-SERV's Matter bridge, use "Clear configuration" in Designer's Matter panel instead. See [docs/designer-quirks.md](docs/designer-quirks.md).
+Avoid toggling an object's Matter checkbox in Designer once the object has an entity here. Unchecking it clears the object's leaf id, which the diagnostics use to join the object to its Designer record. The device tree does not depend on it. To stop the M-SERV's Matter bridge, use "Clear configuration" in Designer's Matter panel instead. See [docs/designer-quirks.md](docs/designer-quirks.md).
 
 ## Relationship to home-assistant/core
 
