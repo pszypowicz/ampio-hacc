@@ -11,7 +11,7 @@ A Home Assistant integration for the [Ampio Smart Home](https://ampio.com/) syst
 | Platform        | What you get                                                                 |
 | --------------- | ---------------------------------------------------------------------------- |
 | `sensor`        | Temperature, humidity, pressure, CO2, air quality, illuminance, loudness     |
-| `binary_sensor` | Motion detection and wired button inputs                                     |
+| `binary_sensor` | Wired button inputs                                                          |
 | `light`         | Dimmers, RGBW outputs, and relays tagged as lights in Ampio Designer         |
 | `cover`         | Shutters and blinds, with position and slat tilt where the hardware has them |
 | `switch`        | Remaining relays and Ampio flags, with the outlet class for plug-tagged ones |
@@ -56,6 +56,8 @@ Rename the devices and assign the areas to suit yourself. Nothing you do there m
 One physical output can carry several objects in Ampio Designer. Each object gets its own entity.
 
 If a relay tagged as a light in Designer surfaces as a switch, see [docs/designer-quirks.md](docs/designer-quirks.md).
+
+Do not toggle an object's Matter checkbox in Designer once the object has an entity here. Unchecking it clears the object's leaf id, and the entity then moves to the M-SERV hub until you check the box again. To stop the M-SERV's Matter bridge, use "Clear configuration" in Designer's Matter panel instead. See [docs/designer-quirks.md](docs/designer-quirks.md).
 
 ## Relationship to home-assistant/core
 

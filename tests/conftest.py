@@ -124,9 +124,10 @@ def make_object(
 # module 17, so the entity snapshot pins every description's device class,
 # unit, precision, and display name. The hidden phantom mirrors a real M-SENS
 # where adding a CO2 object in Designer leaves an unnamed stub sharing the
-# leafId behind; the ghost is a removed-but-still-returned row with no leafId.
-# The three input objects (a named flag, an unnamed motion detection, a
-# named wired-button input) feed the binary_sensor platform the same way.
+# leafId behind; the ghost is a removed-but-still-returned row, hidden bit
+# set and no leafId. The three input objects (a named flag, a system-typed
+# detection row that must never surface, a named wired-button input) feed
+# the binary_sensor and switch platforms the same way.
 # The four output objects (a named dimmer, an rgbw, a Matter-tagged relay
 # light, an untagged relay for the switch platform) feed the light and
 # switch platforms, plus a plug-tagged relay for the switch platform's
@@ -295,7 +296,7 @@ DEFAULT_OBJECTS = (
         ),
     ),
     make_object(132, "lin_wej", 7, leaf_id="0_cb8f_lin_0_3", funkcja=3, params=16),
-    make_object(99, "lin_wej", 2, leaf_id="", funkcja=4),
+    make_object(99, "lin_wej", 2, leaf_id="", funkcja=4, params=16),
     make_object(
         121,
         "flaga",
