@@ -1,5 +1,6 @@
 """The Ampio integration."""
 
+from collections import Counter
 import logging
 
 from ampio_mqtt import (
@@ -8,6 +9,7 @@ from ampio_mqtt import (
     AmpioClient,
     AmpioConnectionError,
     AmpioModule,
+    AmpioObject,
     AmpioTimeoutError,
     AuthFailed,
     AvailabilityChanged,
@@ -146,35 +148,45 @@ async def async_setup_entry(hass: HomeAssistant, entry: AmpioConfigEntry) -> boo
     # and decorates the model, the versions, and the serial; a restricted
     # account falls back to the leaf-embedded mac in the name. None of those
     # reaches an entity id.
-    mserv_id = mserv.id if mserv is not None else None
-    if mserv_id is None:
-        mserv_id = next(
-            (
-                obj.id_urzadzenia
-                for obj in eligible_objects(client)
-                if obj.is_server_owned and obj.id_urzadzenia is not None
-            ),
-            None,
-        )
-    module_macs: dict[int, int | None] = {}
+    #
+    # The M-SERV's own row is read off the objects that name it, because
+    # both tiers receive those; the admin-only catalogue row answers only
+    # when the account is served no server-owned object at all. Reading the
+    # catalogue first would build one tree for an administrator and another
+    # for a restricted account wherever the two disagree. A split vote goes
+    # to the row most objects name, and ties to the first one seen.
+    server_rows = Counter(
+        obj.id_urzadzenia
+        for obj in eligible_objects(client)
+        if obj.is_server_owned and obj.id_urzadzenia is not None
+    )
+    mserv_id: int | None = None
+    if server_rows:
+        mserv_id = server_rows.most_common(1)[0][0]
+    elif mserv is not None:
+        mserv_id = mserv.id
+    # One object per row stands for it: the first in catalogue order that
+    # carries a leaf mac, which is both the mac that names the row and the
+    # mac the catalogue join is gated on. A row whose objects have all lost
+    # their leaf keeps the first object it saw and joins ungated.
+    module_reps: dict[int, AmpioObject] = {}
     for obj in eligible_objects(client):
         module_id = obj.id_urzadzenia
         if obj.is_server_owned or module_id is None or module_id == mserv_id:
             continue
-        if module_macs.get(module_id) is None:
-            module_macs[module_id] = obj.module_mac
+        rep = module_reps.get(module_id)
+        if rep is None or (rep.module_mac is None and obj.module_mac is not None):
+            module_reps[module_id] = obj
     module_device_ids: dict[int, str] = {}
-    for module_id, mac in module_macs.items():
-        module = client.modules.get(module_id)
+    for module_id, rep in module_reps.items():
         # DB ids are volatile across a Designer resync while the leaf mac is
-        # the hardware identity, so a row whose mac disagrees with the leaf
-        # decorates nothing.
-        if module is not None and mac is not None and module.mac not in (None, mac):
-            module = None
+        # the hardware identity, so the library's join drops a row whose mac
+        # disagrees with the leaf, and such a row decorates nothing.
+        module = client.module_for(rep)
         module_device = device_registry.async_get_or_create(
             config_entry_id=entry.entry_id,
             identifiers={module_identifier(module_id)},
-            name=_module_name(module, mac, module_id),
+            name=_module_name(module, rep.module_mac, module_id),
             manufacturer="Ampio",
             via_device_id=hub.id,
             model=module.model if module else None,

@@ -334,13 +334,30 @@ async def test_module_without_catalogue_row_gets_bare_device(
 
 
 @pytest.mark.parametrize(
-    ("changes", "expected_model"),
+    ("changes", "strip_leaf_ids", "expected_name", "expected_model"),
     [
-        pytest.param({"nazwa_urzadzenia": None}, "M-SENS", id="nameless-module"),
+        pytest.param(
+            {"nazwa_urzadzenia": None},
+            False,
+            MSENS_MAC_NAME,
+            "M-SENS",
+            id="nameless-module",
+        ),
         # The device_id join key is volatile across resyncs; the leaf-derived
         # mac is authoritative, so a disagreeing row must not misattribute
         # another module's metadata to this device.
-        pytest.param({"mac": 99999}, None, id="disagreeing-mac"),
+        pytest.param({"mac": 99999}, False, MSENS_MAC_NAME, None, id="disagreeing-mac"),
+        # Designer cleared the leaf on every object of the row, so no mac is
+        # left to name the device and the row id is what remains. The
+        # catalogue join still stands: it is gated on a leaf mac the objects
+        # no longer carry.
+        pytest.param(
+            {"nazwa_urzadzenia": None},
+            True,
+            "Ampio module 17",
+            "M-SENS",
+            id="no-leaf-mac",
+        ),
     ],
 )
 async def test_module_name_falls_back_to_mac(
@@ -349,10 +366,17 @@ async def test_module_name_falls_back_to_mac(
     mock_config_entry: MockConfigEntry,
     device_registry: dr.DeviceRegistry,
     changes: dict[str, int | None],
+    strip_leaf_ids: bool,
+    expected_name: str,
     expected_model: str | None,
 ) -> None:
-    """A row that names nothing leaves the device on its mac-derived name."""
+    """A row that names nothing leaves the device on its mac, then on its row id."""
     mock_client.modules[17] = replace(mock_client.modules[17], **changes)
+    if strip_leaf_ids:
+        mock_client.objects = {
+            oid: replace(obj, leaf_id="") if obj.id_urzadzenia == 17 else obj
+            for oid, obj in mock_client.objects.items()
+        }
 
     await setup_integration(hass, mock_config_entry)
 
@@ -360,7 +384,7 @@ async def test_module_name_falls_back_to_mac(
         MSENS_IDENTIFIER, mock_config_entry.entry_id
     )
     assert device is not None
-    assert device.name == MSENS_MAC_NAME
+    assert device.name == expected_name
     assert device.model == expected_model
 
 

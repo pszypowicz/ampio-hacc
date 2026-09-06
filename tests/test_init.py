@@ -680,6 +680,43 @@ async def test_every_object_gets_a_child_device(
             assert entity.device_id not in {hub.id, module.id}
 
 
+async def test_server_objects_outrank_the_catalogue_on_the_mserv_row(
+    hass: HomeAssistant,
+    mock_client: MagicMock,
+    mock_config_entry: MockConfigEntry,
+    device_registry: dr.DeviceRegistry,
+) -> None:
+    """The M-SERV's row comes from its objects, not from the module catalogue.
+
+    Both tiers receive the server-owned objects; only the administrator
+    tier receives the catalogue row. Reading the catalogue first would
+    build one tree for an administrator and another for a restricted
+    account wherever the two disagree.
+    """
+    mock_client.mserv = replace(mock_client.modules[1], id=42)
+    mock_client.objects[99] = make_object(
+        99, "przekaznik", 0, leaf_id="", id_urzadzenia=1, opis_menu="Pompa", state="0"
+    )
+
+    await setup_integration(hass, mock_config_entry)
+
+    hub = device_registry.async_get_device_by_identifier(
+        HUB_IDENTIFIER, mock_config_entry.entry_id
+    )
+    assert hub is not None
+    child = device_registry.async_get_child_device_by_identifier(
+        (DOMAIN, unique_id(99)), mock_config_entry.entry_id
+    )
+    assert child is not None
+    assert child.parent_device_id == hub.id
+    assert (
+        device_registry.async_get_device_by_identifier(
+            (DOMAIN, "module:1"), mock_config_entry.entry_id
+        )
+        is None
+    )
+
+
 async def test_remove_config_entry_device(
     hass: HomeAssistant,
     mock_client: MagicMock,
@@ -746,7 +783,7 @@ async def test_moved_object_is_repaired_by_a_delete(
     mock_client: MagicMock,
     mock_config_entry: MockConfigEntry,
     device_registry: dr.DeviceRegistry,
-    entity_registry: er.EntityRegistry,
+    area_registry: ar.AreaRegistry,
 ) -> None:
     """A child keeps its parent, so a moved object needs a delete to follow.
 
@@ -760,6 +797,12 @@ async def test_moved_object_is_repaired_by_a_delete(
     )
     assert child is not None
     assert hass.states.get(pinned_id("switch", 74)).state == STATE_ON
+
+    # What the user put on the device is what the delete has to give back.
+    piwnica = area_registry.async_get_or_create("Piwnica")
+    device_registry.async_update_child_device(
+        child.id, name_by_user="Przekaznik piwnica", area_id=piwnica.id
+    )
 
     mock_client.objects[74] = replace(
         mock_client.objects[74], id_urzadzenia=3, leaf_id="0_be82_rel_0_1"
@@ -791,4 +834,6 @@ async def test_moved_object_is_repaired_by_a_delete(
     assert new_module is not None
     assert moved.id == child.id
     assert moved.parent_device_id == new_module.id
+    assert moved.name_by_user == "Przekaznik piwnica"
+    assert moved.area_id == piwnica.id
     assert hass.states.get(pinned_id("switch", 74)).state == STATE_ON

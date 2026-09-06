@@ -28,7 +28,7 @@ Verified on server 1865 with a virtual test relay, and pinned by the integration
 
 Home Assistant cannot move a child device to another parent. When you move an object to another module in Designer, or a replacement gives a module a new row, the object's device keeps its old parent, and Home Assistant skips the entity on the next restart with a log line that ends "remove the child device first".
 
-Delete the object's device under Settings, then Devices and services. On the next restart it comes back under the new module, with its id, its area, and its name restored. The removal hook offers the delete for exactly such devices.
+Delete the object's device under Settings, then Devices and services. On the next restart it comes back under the new module, with its id, its area, and its name restored. The removal hook offers the delete for exactly such devices. If that object was the last one on its old module, the old module device stays behind empty, and the hook offers you that delete too.
 
 ## The stability contract
 
