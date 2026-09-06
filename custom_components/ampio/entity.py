@@ -114,6 +114,10 @@ class AmpioEntity(Entity):
         else:
             device_info["translation_key"] = "object"
             device_info["translation_placeholders"] = {"id": str(obj.id)}
+        # The app room seeds the area once, at the device's first creation.
+        # The registry never moves a device on a later suggestion.
+        if (room := data.rooms.get(obj.id)) is not None:
+            device_info["suggested_area"] = room
         self._attr_device_info = device_info
 
     @override

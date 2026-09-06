@@ -16,6 +16,9 @@ class AmpioData:
     # module device per leaf mac. Setup fills them before the platforms load.
     hub_device_id: str
     module_device_ids: dict[int, str]
+    # The app room of each object, from the tier-shared room tables. It
+    # seeds a child device's area once, at the device's first creation.
+    rooms: dict[int, str]
 
 
 type AmpioConfigEntry = ConfigEntry[AmpioData]

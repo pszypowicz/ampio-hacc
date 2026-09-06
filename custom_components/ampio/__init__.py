@@ -164,16 +164,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: AmpioConfigEntry) -> boo
         )
         module_device_ids[mac] = module_device.id
 
-    # The room map is fetched for the diagnostics download alone: the reply
-    # lands in the library's ``diagnostics_snapshot()``. Nothing in the
-    # entity or device path reads it, so a failure costs diagnostic detail
-    # and must not fail setup.
+    # The room map seeds each object child's area at its first creation,
+    # and the diagnostics download carries it. Nothing in the entity or
+    # device path depends on it after that, so a failure costs the seed and
+    # must not fail setup.
     try:
-        await client.fetch_rooms()
+        rooms = await client.fetch_rooms()
     except AmpioConnectionError:
         _LOGGER.warning(
-            "Could not fetch the Ampio room map; the diagnostics download omits it"
+            "Could not fetch the Ampio room map; the devices get no area suggestion"
         )
+        rooms = {}
 
     # The description sweep fills each object's admin-guarded record bundle,
     # for the diagnostics download in the same way. It runs in the
@@ -188,7 +189,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: AmpioConfigEntry) -> boo
             hass, _async_sweep_records(client), "ampio_resolve_records"
         )
 
-    entry.runtime_data = AmpioData(client, hub.id, module_device_ids)
+    entry.runtime_data = AmpioData(client, hub.id, module_device_ids, rooms)
 
     was_unavailable = False
 

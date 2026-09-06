@@ -31,6 +31,7 @@ from homeassistant.helpers import (
 
 from . import setup_integration
 from .conftest import (
+    DEFAULT_ROOMS,
     EMPTY_SWEEP,
     HUB_IDENTIFIER,
     MSENS_DEVICE_NAME,
@@ -424,10 +425,78 @@ async def test_duplicate_leaf_builds_both_entities(
     assert "does not generate unique IDs" not in caplog.text
 
 
+@pytest.mark.usefixtures("mock_client")
+async def test_rooms_seed_child_areas(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    device_registry: dr.DeviceRegistry,
+    area_registry: ar.AreaRegistry,
+) -> None:
+    """A child takes its object's app room as its area; no room, no area.
+
+    The room tables ride the data surface both account tiers receive, and
+    the seed applies at first creation only. Hub and modules get none: a
+    module spans rooms.
+    """
+    await setup_integration(hass, mock_config_entry)
+
+    for object_id, room in DEFAULT_ROOMS.items():
+        child = device_registry.async_get_child_device_by_identifier(
+            (DOMAIN, unique_id(object_id)), mock_config_entry.entry_id
+        )
+        assert child is not None
+        area = area_registry.async_get_area_by_name(room)
+        assert area is not None
+        assert child.area_id == area.id
+
+    roomless = device_registry.async_get_child_device_by_identifier(
+        (DOMAIN, unique_id(74)), mock_config_entry.entry_id
+    )
+    assert roomless is not None
+    assert roomless.area_id is None
+    hub = device_registry.async_get_device_by_identifier(
+        HUB_IDENTIFIER, mock_config_entry.entry_id
+    )
+    module = device_registry.async_get_device_by_identifier(
+        MSENS_IDENTIFIER, mock_config_entry.entry_id
+    )
+    assert hub is not None and hub.area_id is None
+    assert module is not None and module.area_id is None
+
+
+async def test_area_seed_never_moves_a_device(
+    hass: HomeAssistant,
+    mock_client: MagicMock,
+    mock_config_entry: MockConfigEntry,
+    device_registry: dr.DeviceRegistry,
+    area_registry: ar.AreaRegistry,
+) -> None:
+    """The room seeds an area once; a later room change moves nothing."""
+    await setup_integration(hass, mock_config_entry)
+    child = device_registry.async_get_child_device_by_identifier(
+        (DOMAIN, unique_id(36)), mock_config_entry.entry_id
+    )
+    assert child is not None
+    elsewhere = area_registry.async_get_or_create("Garaż")
+    device_registry.async_update_child_device(child.id, area_id=elsewhere.id)
+
+    mock_client.fetch_rooms.return_value = {**DEFAULT_ROOMS, 36: "Kuchnia"}
+    await hass.config_entries.async_reload(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    moved = device_registry.async_get_child_device_by_identifier(
+        (DOMAIN, unique_id(36)), mock_config_entry.entry_id
+    )
+    assert moved is not None
+    assert moved.id == child.id
+    assert moved.area_id == elsewhere.id
+
+
 async def test_room_fetch_failure_degrades(
     hass: HomeAssistant,
     mock_client: MagicMock,
     mock_config_entry: MockConfigEntry,
+    device_registry: dr.DeviceRegistry,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     """A failed room fetch logs one warning and setup still succeeds."""
@@ -441,6 +510,11 @@ async def test_room_fetch_failure_degrades(
         if record.levelname == "WARNING" and "room map" in record.getMessage()
     ]
     assert len(room_map_warnings) == 1
+    child = device_registry.async_get_child_device_by_identifier(
+        (DOMAIN, unique_id(36)), mock_config_entry.entry_id
+    )
+    assert child is not None
+    assert child.area_id is None
 
 
 async def test_sweep_never_moves_an_entity(
@@ -494,7 +568,7 @@ async def test_resolve_failure_degrades(
     assert len(warnings) == 1
 
 
-async def test_admin_records_never_set_an_area(
+async def test_admin_records_never_seed_an_area(
     hass: HomeAssistant,
     mock_client: MagicMock,
     mock_config_entry: MockConfigEntry,
@@ -505,7 +579,7 @@ async def test_admin_records_never_set_an_area(
 
     The sweep answers an administrator alone, and the Designer location is
     not the Home Assistant area map. Where a device belongs is the user's
-    call, so the integration seeds nothing.
+    call, so the integration seeds nothing from the records.
     """
 
     def _resolve() -> RecordSweep:
@@ -520,11 +594,17 @@ async def test_admin_records_never_set_an_area(
     await setup_integration(hass, mock_config_entry)
 
     assert area_registry.async_get_area_by_name("Garaz") is None
-    devices = dr.async_entries_for_config_entry(
-        device_registry, mock_config_entry.entry_id
+    with_room = device_registry.async_get_child_device_by_identifier(
+        (DOMAIN, unique_id(81)), mock_config_entry.entry_id
     )
-    assert devices
-    assert all(device.area_id is None for device in devices)
+    without_room = device_registry.async_get_child_device_by_identifier(
+        (DOMAIN, unique_id(82)), mock_config_entry.entry_id
+    )
+    assert with_room is not None and without_room is not None
+    sypialnia = area_registry.async_get_area_by_name("Sypialnia")
+    assert sypialnia is not None
+    assert with_room.area_id == sypialnia.id
+    assert without_room.area_id is None
 
 
 @pytest.mark.usefixtures("mock_client")
