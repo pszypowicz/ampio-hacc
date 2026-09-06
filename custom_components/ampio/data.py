@@ -12,6 +12,10 @@ class AmpioData:
     """Runtime data for one Ampio server."""
 
     client: AmpioClient
+    # Registry ids the object child devices parent to: the hub, and one
+    # module device per leaf mac. Setup fills them before the platforms load.
+    hub_device_id: str
+    module_device_ids: dict[int, str]
 
 
 type AmpioConfigEntry = ConfigEntry[AmpioData]

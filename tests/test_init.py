@@ -193,17 +193,19 @@ async def test_restricted_account_groups_by_module_mac(
         entity_registry, mock_config_entry.entry_id
     )
     assert len(entities) == 26
-    # The tree is two deep. Scenes and every server-owned object sit on the
-    # hub; every other entity sits on its module device. No entity rides a
-    # device of its own, whatever its platform.
+    # The tree is three deep. Scenes sit on the hub. Every object sits on
+    # a child device of its own, under its module, or under the hub for a
+    # server-owned object. The tier changes no parent and no identifier.
     hub_unique_ids = {unique_id(121)}
     for entity in entities:
-        expected = (
-            hub.id
-            if entity.domain == "scene" or entity.unique_id in hub_unique_ids
-            else module.id
-        )
-        assert entity.device_id == expected
+        if entity.domain == "scene":
+            assert entity.device_id == hub.id
+            continue
+        assert entity.device_id is not None
+        child = device_registry.async_get(entity.device_id)
+        assert isinstance(child, dr.ChildDeviceEntry)
+        expected = hub.id if entity.unique_id in hub_unique_ids else module.id
+        assert child.parent_device_id == expected
 
     assert len([entity for entity in entities if entity.domain == "scene"]) == 1
 
@@ -526,56 +528,75 @@ async def test_admin_records_never_set_an_area(
 
 
 @pytest.mark.usefixtures("mock_client")
-async def test_no_object_gets_a_device(
+async def test_every_object_gets_a_child_device(
     hass: HomeAssistant,
     mock_config_entry: MockConfigEntry,
     device_registry: dr.DeviceRegistry,
     entity_registry: er.EntityRegistry,
 ) -> None:
-    """The tree is the hub and its modules; an object is never a device.
+    """One child device per object, under its module, named after the object.
 
-    Every identifier derives from data both account tiers receive, so the
-    two tiers build the identical tree.
+    The primary entity carries no name of its own, so its friendly name is
+    the device name. An unnamed object reads a translated placeholder, and
+    its entity keeps the platform's kind name beside it.
     """
     await setup_integration(hass, mock_config_entry)
 
     hub = device_registry.async_get_device_by_identifier(
         HUB_IDENTIFIER, mock_config_entry.entry_id
     )
-    module_device = device_registry.async_get_device_by_identifier(
+    module = device_registry.async_get_device_by_identifier(
         MSENS_IDENTIFIER, mock_config_entry.entry_id
     )
     assert hub is not None
-    assert module_device is not None
+    assert module is not None
 
-    devices = dr.async_entries_for_config_entry(
-        device_registry, mock_config_entry.entry_id
-    )
-    assert {device.id for device in devices} == {hub.id, module_device.id}
-
-    # An output (71, a dimmer), a sensor (36) and a thermostat (91) all sit
-    # on the module device; the server-owned flag (121) sits on the hub.
-    for domain, object_id in (
-        ("light", 71),
-        ("sensor", 36),
-        ("climate", 91),
-        ("switch", 74),
+    for domain, object_id, name, friendly in (
+        ("light", 71, "Taras LED", "Taras LED"),
+        ("sensor", 36, "Temperatura", "Temperatura"),
+        ("climate", 91, "Termostat Salon", "Termostat Salon"),
+        ("switch", 74, "Object 74", "Object 74"),
+        ("sensor", 43, "Object 43", "Object 43 CO2"),
     ):
-        entity_id = entity_registry.async_get_entity_id(
-            domain, DOMAIN, unique_id(object_id)
+        child = device_registry.async_get_child_device_by_identifier(
+            (DOMAIN, unique_id(object_id)), mock_config_entry.entry_id
         )
-        assert entity_id is not None
-        entity_entry = entity_registry.async_get(entity_id)
-        assert entity_entry is not None
-        assert entity_entry.device_id == module_device.id
+        assert child is not None
+        assert child.parent_device_id == module.id
+        assert child.name == name
+        entity = entity_registry.async_get(pinned_id(domain, object_id))
+        assert entity is not None
+        assert entity.device_id == child.id
+        state = hass.states.get(pinned_id(domain, object_id))
+        assert state is not None
+        assert state.attributes["friendly_name"] == friendly
 
-    flag_entity_id = entity_registry.async_get_entity_id(
-        "switch", DOMAIN, unique_id(121)
+    flag = device_registry.async_get_child_device_by_identifier(
+        (DOMAIN, unique_id(121)), mock_config_entry.entry_id
     )
-    assert flag_entity_id is not None
-    flag_entity = entity_registry.async_get(flag_entity_id)
-    assert flag_entity is not None
-    assert flag_entity.device_id == hub.id
+    assert flag is not None
+    assert flag.parent_device_id == hub.id
+    assert flag.name == "Dom pusty"
+
+    # A bell's pulse diagnostic rides the bell's child with its own name.
+    bell = device_registry.async_get_child_device_by_identifier(
+        (DOMAIN, unique_id(150)), mock_config_entry.entry_id
+    )
+    assert bell is not None
+    pulse = entity_registry.async_get(pinned_id("sensor", 150, "_pulse"))
+    assert pulse is not None
+    assert pulse.device_id == bell.id
+    pulse_state = hass.states.get(pinned_id("sensor", 150, "_pulse"))
+    assert pulse_state is not None
+    assert pulse_state.attributes["friendly_name"] == "Dzwonek Pulse time"
+
+    for entity in er.async_entries_for_config_entry(
+        entity_registry, mock_config_entry.entry_id
+    ):
+        if entity.domain == "scene":
+            assert entity.device_id == hub.id
+        else:
+            assert entity.device_id not in {hub.id, module.id}
 
 
 async def test_remove_config_entry_device(

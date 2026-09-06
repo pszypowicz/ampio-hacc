@@ -13,7 +13,7 @@ from ampio_mqtt import (
 )
 
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers.device_registry import DeviceInfo
+from homeassistant.helpers.device_registry import ChildDeviceInfo
 from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.entity_platform import EntityPlatform
 
@@ -84,19 +84,37 @@ class AmpioEntity(Entity):
         # keeps its own entity.
         self._key = f"{obj.object_key}{key_suffix}"
         self._attr_unique_id = self._key
-        # An object is a channel of the module that carries it. The parent
-        # derives from the leaf-embedded mac, which every account tier
-        # receives, so the tree is identical on both tiers.
-        mac = obj.module_mac
-        if obj.is_server_owned or mac is None:
-            identifier = HUB_IDENTIFIER
+        # An object is a channel of the module that carries it, and its
+        # child device hangs under that module. The parent derives from the
+        # leaf-embedded mac, or from the mac its leaf-bearing siblings embed
+        # when Designer cleared the leaf; both ride the object catalogue
+        # every account tier receives. A server-owned object, or one with
+        # neither mac, hangs under the hub. The registry cannot re-parent a
+        # child, so the choice stands from the first creation on.
+        if obj.is_server_owned:
+            parent = data.hub_device_id
         else:
-            identifier = module_identifier(mac)
-        self._attr_device_info = DeviceInfo(identifiers={identifier})
+            mac = obj.module_mac or obj.sibling_module_mac
+            parent = (
+                data.module_device_ids.get(mac, data.hub_device_id)
+                if mac is not None
+                else data.hub_device_id
+            )
+        device_info = ChildDeviceInfo(
+            identifiers={(DOMAIN, obj.object_key)}, parent_device_id=parent
+        )
         # ``opis_menu`` is the Designer menu description, which is the name
-        # the user gave the object in the Ampio app.
+        # the user gave the object in the Ampio app. The device carries it,
+        # so the primary entity adds no name of its own. An unnamed object
+        # reads a translated placeholder, and its entity keeps the
+        # platform's kind name.
         if obj.opis_menu:
-            self._attr_name = obj.opis_menu
+            device_info["name"] = obj.opis_menu
+            self._attr_name = None
+        else:
+            device_info["translation_key"] = "object"
+            device_info["translation_placeholders"] = {"id": str(obj.id)}
+        self._attr_device_info = device_info
 
     @override
     def add_to_platform_start(

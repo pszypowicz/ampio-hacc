@@ -26,7 +26,7 @@
     }),
     'original_device_class': None,
     'original_icon': None,
-    'original_name': 'Dom pusty',
+    'original_name': None,
     'platform': 'ampio',
     'previous_unique_id': None,
     'suggested_object_id': 'ampio_obj_121',
@@ -39,7 +39,7 @@
 # name: test_all_entities[switch.ampio_obj_121-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'M-SERV Dom pusty',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Dom pusty',
     }),
     'context': <ANY>,
     'entity_id': 'switch.ampio_obj_121',
@@ -76,7 +76,7 @@
     }),
     'original_device_class': None,
     'original_icon': None,
-    'original_name': 'Podlewanie',
+    'original_name': None,
     'platform': 'ampio',
     'previous_unique_id': None,
     'suggested_object_id': 'ampio_obj_61',
@@ -89,7 +89,7 @@
 # name: test_all_entities[switch.ampio_obj_61-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
-      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'm-sens salon Podlewanie',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Podlewanie',
     }),
     'context': <ANY>,
     'entity_id': 'switch.ampio_obj_61',
@@ -140,7 +140,7 @@
   StateSnapshot({
     'attributes': ReadOnlyDict({
       <EntityStateAttribute.DEVICE_CLASS: 'device_class'>: 'switch',
-      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'm-sens salon',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Object 74',
     }),
     'context': <ANY>,
     'entity_id': 'switch.ampio_obj_74',
@@ -177,7 +177,7 @@
     }),
     'original_device_class': <SwitchDeviceClass.OUTLET: 'outlet'>,
     'original_icon': None,
-    'original_name': 'Gniazdo Taras',
+    'original_name': None,
     'platform': 'ampio',
     'previous_unique_id': None,
     'suggested_object_id': 'ampio_obj_75',
@@ -191,7 +191,7 @@
   StateSnapshot({
     'attributes': ReadOnlyDict({
       <EntityStateAttribute.DEVICE_CLASS: 'device_class'>: 'outlet',
-      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'm-sens salon Gniazdo Taras',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Gniazdo Taras',
     }),
     'context': <ANY>,
     'entity_id': 'switch.ampio_obj_75',

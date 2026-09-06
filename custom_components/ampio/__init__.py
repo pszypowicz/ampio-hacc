@@ -143,6 +143,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: AmpioConfigEntry) -> boo
     # catalogue also decorates the model, the versions, and the serial. All
     # of those follow the tier, and none of them reaches an entity id.
     seen_macs: set[int] = set()
+    module_device_ids: dict[int, str] = {}
     for obj in eligible_objects(client):
         if obj.is_server_owned or (mac := obj.module_mac) is None:
             continue
@@ -150,7 +151,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: AmpioConfigEntry) -> boo
             continue
         seen_macs.add(mac)
         module = client.module_for(obj)
-        device_registry.async_get_or_create(
+        module_device = device_registry.async_get_or_create(
             config_entry_id=entry.entry_id,
             identifiers={module_identifier(mac)},
             name=_module_name(module, mac),
@@ -161,6 +162,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: AmpioConfigEntry) -> boo
             hw_version=_opt_str(module.wersja_pcb) if module else None,
             serial_number=_opt_str(module.mac_global) if module else None,
         )
+        module_device_ids[mac] = module_device.id
 
     # The room map is fetched for the diagnostics download alone: the reply
     # lands in the library's ``diagnostics_snapshot()``. Nothing in the
@@ -186,7 +188,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: AmpioConfigEntry) -> boo
             hass, _async_sweep_records(client), "ampio_resolve_records"
         )
 
-    entry.runtime_data = AmpioData(client)
+    entry.runtime_data = AmpioData(client, hub.id, module_device_ids)
 
     was_unavailable = False
 

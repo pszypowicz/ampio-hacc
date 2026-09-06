@@ -25,6 +25,11 @@
             }
         }
     },
+    "device": {
+        "object": {
+            "name": "Object {id}"
+        }
+    },
     "entity": {
         "binary_sensor": {
             "input": {

@@ -30,7 +30,7 @@
     }),
     'original_device_class': None,
     'original_icon': None,
-    'original_name': 'Taras LED',
+    'original_name': None,
     'platform': 'ampio',
     'previous_unique_id': None,
     'suggested_object_id': 'ampio_obj_71',
@@ -45,7 +45,7 @@
     'attributes': ReadOnlyDict({
       <LightEntityStateAttribute.BRIGHTNESS: 'brightness'>: 128,
       <LightEntityStateAttribute.COLOR_MODE: 'color_mode'>: <ColorMode.BRIGHTNESS: 'brightness'>,
-      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'm-sens salon Taras LED',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Taras LED',
       <LightEntityCapabilityAttribute.SUPPORTED_COLOR_MODES: 'supported_color_modes'>: list([
         <ColorMode.BRIGHTNESS: 'brightness'>,
       ]),
@@ -90,7 +90,7 @@
     }),
     'original_device_class': None,
     'original_icon': None,
-    'original_name': 'Salon RGBW',
+    'original_name': None,
     'platform': 'ampio',
     'previous_unique_id': None,
     'suggested_object_id': 'ampio_obj_72',
@@ -105,7 +105,7 @@
     'attributes': ReadOnlyDict({
       <LightEntityStateAttribute.BRIGHTNESS: 'brightness'>: 240,
       <LightEntityStateAttribute.COLOR_MODE: 'color_mode'>: <ColorMode.RGBW: 'rgbw'>,
-      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'm-sens salon Salon RGBW',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Salon RGBW',
       <LightEntityStateAttribute.HS_COLOR: 'hs_color'>: tuple(
         209.565,
         28.75,
@@ -169,7 +169,7 @@
     }),
     'original_device_class': None,
     'original_icon': None,
-    'original_name': 'Kinkiet',
+    'original_name': None,
     'platform': 'ampio',
     'previous_unique_id': None,
     'suggested_object_id': 'ampio_obj_73',
@@ -183,7 +183,7 @@
   StateSnapshot({
     'attributes': ReadOnlyDict({
       <LightEntityStateAttribute.COLOR_MODE: 'color_mode'>: None,
-      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'm-sens salon Kinkiet',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Kinkiet',
       <LightEntityCapabilityAttribute.SUPPORTED_COLOR_MODES: 'supported_color_modes'>: list([
         <ColorMode.ONOFF: 'onoff'>,
       ]),

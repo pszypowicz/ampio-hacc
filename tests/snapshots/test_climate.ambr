@@ -38,7 +38,7 @@
     }),
     'original_device_class': None,
     'original_icon': None,
-    'original_name': 'Termostat Salon',
+    'original_name': None,
     'platform': 'ampio',
     'previous_unique_id': None,
     'suggested_object_id': 'ampio_obj_91',
@@ -52,7 +52,7 @@
   StateSnapshot({
     'attributes': ReadOnlyDict({
       <ClimateEntityStateAttribute.CURRENT_TEMPERATURE: 'current_temperature'>: 21.8,
-      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'm-sens salon Termostat Salon',
+      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'Termostat Salon',
       <ClimateEntityStateAttribute.HVAC_ACTION: 'hvac_action'>: <HVACAction.HEATING: 'heating'>,
       <ClimateEntityCapabilityAttribute.HVAC_MODES: 'hvac_modes'>: list([
         <HVACMode.HEAT: 'heat'>,

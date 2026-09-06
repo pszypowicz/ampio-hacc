@@ -109,6 +109,7 @@ def make_object(
     lammel: int | None = None,
     thermostat: ThermostatState | None = None,
     pulse_ms: int = 0,
+    sibling_module_mac: int | None = None,
 ) -> AmpioObject:
     """Build a classified object the way discovery would."""
     return AmpioObject(
@@ -125,6 +126,7 @@ def make_object(
         lammel=lammel,
         thermostat=thermostat,
         pulse_ms=pulse_ms,
+        sibling_module_mac=sibling_module_mac,
     )
 
 
