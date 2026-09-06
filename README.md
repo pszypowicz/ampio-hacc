@@ -49,7 +49,7 @@ See [docs/stale-entities.md](docs/stale-entities.md) to clean up an entity Ampio
 2. In Home Assistant, go to Settings -> Devices & Services -> Add Integration -> Ampio.
 3. Enter the M-SERV host and that user's MQTT credentials.
 
-Devices appear as a hub for the M-SERV, one device per Ampio module, and one device per Ampio object under its module. An object device takes the name you gave the object in the Ampio app, and it takes the object's app room as its area when Home Assistant creates it. After that the area is yours: the integration never moves a device. A module takes the name you gave it in Ampio Designer, or `Ampio module 0x<MAC>` when your account is not an administrator one. The M-SERV's own objects sit under the hub.
+Devices appear as a hub for the M-SERV, one device per Ampio module, and one device per Ampio object under its module. An object device takes the name you gave the object in the Ampio app, and it takes the object's app room as its area when Home Assistant creates it. After that the area is yours: the integration never moves a device. A module takes the name you gave it in Ampio Designer, or `Ampio module 0x<MAC>` when your account is not an administrator one. The M-SERV's own objects sit under the hub. The tree follows the module each object belongs to in Ampio Designer. If you move an object to another module, or a replacement gives a module a new row in Designer, delete the object's device in Home Assistant after the next restart; it comes back under the new module with its area and name.
 
 Home Assistant matches rooms to areas by name. If your Ampio rooms and your areas differ in spelling, rename one side before you add the integration, or move the devices afterwards.
 
@@ -61,7 +61,7 @@ One physical output can carry several objects in Ampio Designer. Each object get
 
 If a relay tagged as a light in Designer surfaces as a switch, see [docs/designer-quirks.md](docs/designer-quirks.md).
 
-Do not toggle an object's Matter checkbox in Designer once the object has an entity here. Unchecking it clears the object's leaf id. The object keeps its module when a sibling output on the same module still has one, and hangs under the M-SERV hub otherwise. Which siblings you have follows your account's grant, so a restricted account can pin an object under the hub where an administrator account would have kept it on its module. To repair either case, check the box again and reload the integration. The entity stays available, and the log names the object. Delete that object's device, and it comes back under its module on the next reload, with its id, its area, and its name. To stop the M-SERV's Matter bridge, use "Clear configuration" in Designer's Matter panel instead. See [docs/designer-quirks.md](docs/designer-quirks.md).
+Avoid toggling an object's Matter checkbox in Designer once the object has an entity here. Unchecking it clears the object's leaf id, which the diagnostics use to join the object to its Designer record. The device tree does not depend on it. To stop the M-SERV's Matter bridge, use "Clear configuration" in Designer's Matter panel instead. See [docs/designer-quirks.md](docs/designer-quirks.md).
 
 ## Relationship to home-assistant/core
 

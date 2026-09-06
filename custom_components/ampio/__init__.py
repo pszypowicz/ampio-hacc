@@ -26,13 +26,7 @@ from homeassistant.helpers import device_registry as dr
 
 from .const import DOMAIN, PLATFORMS
 from .data import AmpioConfigEntry, AmpioData
-from .entity import (
-    HUB_IDENTIFIER,
-    eligible_objects,
-    module_identifier,
-    parent_needs_repair,
-    resolve_parent,
-)
+from .entity import HUB_IDENTIFIER, eligible_objects, module_identifier, resolve_parent
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -42,19 +36,23 @@ def _opt_str(value: object | None) -> str | None:
     return None if value is None else str(value)
 
 
-def _module_name(module: AmpioModule | None, mac: int) -> str:
-    """Name a module device: the installer's own name, or the mac.
+def _module_name(module: AmpioModule | None, mac: int | None, module_id: int) -> str:
+    """Name a module device: the installer's own name, the mac, or the row.
 
     ``nazwa_urzadzenia`` is the name the installer gave the module in Ampio
     Designer, and the module catalogue that carries it answers the
-    administrator login alone. A restricted account is served the mac form
-    instead, so this name follows the account tier. Nothing depends on it:
-    ``AmpioEntity`` pins the entity id, so a name that changes on a tier
-    switch renames the device in the interface and moves no id.
+    administrator login alone. A restricted account is served the
+    leaf-embedded mac instead, and a module whose objects all lost their
+    leaf is left with its Designer row id. So this name follows the account
+    tier. Nothing depends on it: ``AmpioEntity`` pins the entity id, so a
+    name that changes on a tier switch renames the device in the interface
+    and moves no id.
     """
     if module is not None and module.nazwa_urzadzenia:
         return module.nazwa_urzadzenia
-    return f"Ampio module 0x{mac:X}"
+    if mac is not None:
+        return f"Ampio module 0x{mac:X}"
+    return f"Ampio module {module_id}"
 
 
 async def _async_sweep_records(client: AmpioClient) -> None:
@@ -142,25 +140,41 @@ async def async_setup_entry(hass: HomeAssistant, entry: AmpioConfigEntry) -> boo
         configuration_url=f"http://{info.local_ip}" if info.local_ip else None,
     )
 
-    # One device per module, registered before the platforms load. The
-    # identifier derives from the leaf-embedded mac alone, which every
-    # account tier receives, so the tree holds still across a tier change.
-    # The name comes from the admin catalogue where that answers, and the
-    # catalogue also decorates the model, the versions, and the serial. All
-    # of those follow the tier, and none of them reaches an entity id.
-    seen_macs: set[int] = set()
-    module_device_ids: dict[int, str] = {}
+    # One device per Designer module row, registered before the platforms
+    # load. The row id rides every object on both account tiers, so the tree
+    # holds still across a tier change. The admin catalogue names the module
+    # and decorates the model, the versions, and the serial; a restricted
+    # account falls back to the leaf-embedded mac in the name. None of those
+    # reaches an entity id.
+    mserv_id = mserv.id if mserv is not None else None
+    if mserv_id is None:
+        mserv_id = next(
+            (
+                obj.id_urzadzenia
+                for obj in eligible_objects(client)
+                if obj.is_server_owned and obj.id_urzadzenia is not None
+            ),
+            None,
+        )
+    module_macs: dict[int, int | None] = {}
     for obj in eligible_objects(client):
-        if obj.is_server_owned or (mac := obj.module_mac) is None:
+        module_id = obj.id_urzadzenia
+        if obj.is_server_owned or module_id is None or module_id == mserv_id:
             continue
-        if mac in seen_macs:
-            continue
-        seen_macs.add(mac)
-        module = client.module_for(obj)
+        if module_macs.get(module_id) is None:
+            module_macs[module_id] = obj.module_mac
+    module_device_ids: dict[int, str] = {}
+    for module_id, mac in module_macs.items():
+        module = client.modules.get(module_id)
+        # DB ids are volatile across a Designer resync while the leaf mac is
+        # the hardware identity, so a row whose mac disagrees with the leaf
+        # decorates nothing.
+        if module is not None and mac is not None and module.mac not in (None, mac):
+            module = None
         module_device = device_registry.async_get_or_create(
             config_entry_id=entry.entry_id,
-            identifiers={module_identifier(mac)},
-            name=_module_name(module, mac),
+            identifiers={module_identifier(module_id)},
+            name=_module_name(module, mac, module_id),
             manufacturer="Ampio",
             via_device_id=hub.id,
             model=module.model if module else None,
@@ -168,34 +182,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: AmpioConfigEntry) -> boo
             hw_version=_opt_str(module.wersja_pcb) if module else None,
             serial_number=_opt_str(module.mac_global) if module else None,
         )
-        module_device_ids[mac] = module_device.id
-
-    # A child device keeps the parent it was created under: the registry
-    # cannot re-parent one, and it rejects an entity whose device info
-    # names another parent, which would drop the entity from the set. So
-    # the parent already stored wins, and a stored parent that differs from
-    # a resolved module parent is reported instead. Deleting the device is
-    # the repair, and the next reload builds it again under the resolved
-    # parent. A resolved hub never displaces a stored module: it is only
-    # what an object falls back to when it names no module, not a parent a
-    # live child should be moved to, so that mismatch stays silent.
-    child_parent_ids: dict[str, str] = {}
-    for obj in eligible_objects(client):
-        child = device_registry.async_get_child_device_by_identifier(
-            (DOMAIN, obj.object_key), entry.entry_id
-        )
-        if child is None:
-            continue
-        child_parent_ids[obj.object_key] = child.parent_device_id
-        resolved = resolve_parent(obj, hub.id, module_device_ids)
-        if parent_needs_repair(child.parent_device_id, resolved, hub.id):
-            _LOGGER.warning(
-                "Ampio object %s (%s) sits under a device that is no longer its "
-                "parent; delete its device in Home Assistant, and it comes back "
-                "under the right one on the next reload",
-                obj.id,
-                obj.opis_menu,
-            )
+        module_device_ids[module_id] = module_device.id
 
     # The room map seeds each object child's area at its first creation,
     # and the diagnostics download carries it. Nothing in the entity or
@@ -222,9 +209,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: AmpioConfigEntry) -> boo
             hass, _async_sweep_records(client), "ampio_resolve_records"
         )
 
-    entry.runtime_data = AmpioData(
-        client, hub.id, module_device_ids, rooms, child_parent_ids
-    )
+    entry.runtime_data = AmpioData(client, hub.id, module_device_ids, rooms, mserv_id)
 
     was_unavailable = False
 
@@ -271,25 +256,34 @@ async def async_unload_entry(hass: HomeAssistant, entry: AmpioConfigEntry) -> bo
 async def async_remove_config_entry_device(
     hass: HomeAssistant, entry: AmpioConfigEntry, device_entry: dr.AnyDeviceEntry
 ) -> bool:
-    """Allow removing a device that no longer describes the install.
+    """Allow removing a device whose object the account no longer receives.
 
+    The child of an object that now resolves to another parent goes too.
     The hub always stays. A module device stays while the account still
     receives an object on it, and an object's child device stays while the
-    account still receives that object. The one live child that goes is
-    the one whose stored parent differs from a resolved module parent: the
-    registry cannot re-parent a child, so the delete is how the user moves
-    it, and the next reload builds it again under the resolved parent with
-    its id, its area, and its name restored. A resolved hub never outranks
-    a stored module, so a child whose object now resolves to the hub stays
-    protected, exactly like one whose parent still matches.
+    account still receives that object and the child sits under the parent
+    the object resolves to. The registry cannot re-parent a child, so the
+    delete is how the user moves it, and the next reload builds it again
+    under the resolved parent with its id, its area, and its name restored.
     """
     data = entry.runtime_data
     live: set[tuple[str, str]] = {HUB_IDENTIFIER}
+    expected_parent: dict[tuple[str, str], str] = {}
     for obj in eligible_objects(data.client):
-        if not obj.is_server_owned and (mac := obj.module_mac) is not None:
-            live.add(module_identifier(mac))
-        stored = data.child_parent_ids.get(obj.object_key)
-        resolved = resolve_parent(obj, data.hub_device_id, data.module_device_ids)
-        if not parent_needs_repair(stored, resolved, data.hub_device_id):
-            live.add((DOMAIN, obj.object_key))
+        parent = resolve_parent(
+            obj, data.hub_device_id, data.module_device_ids, data.mserv_id
+        )
+        if parent != data.hub_device_id and obj.id_urzadzenia is not None:
+            live.add(module_identifier(obj.id_urzadzenia))
+        live.add((DOMAIN, obj.object_key))
+        expected_parent[(DOMAIN, obj.object_key)] = parent
+    if isinstance(device_entry, dr.ChildDeviceEntry):
+        # The registry cannot move a child, so a child whose object now
+        # resolves elsewhere is deletable: the delete is the move.
+        for identifier in device_entry.identifiers:
+            if (
+                identifier in expected_parent
+                and expected_parent[identifier] != device_entry.parent_device_id
+            ):
+                return True
     return not any(identifier in live for identifier in device_entry.identifiers)

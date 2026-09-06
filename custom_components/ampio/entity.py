@@ -39,41 +39,27 @@ def eligible_objects(client: AmpioClient) -> Iterator[AmpioObject]:
 HUB_IDENTIFIER: Final = (DOMAIN, "hub")
 
 
-def module_identifier(mac: int) -> tuple[str, str]:
-    """The registry identifier of the module device that carries ``mac``."""
-    return (DOMAIN, f"module:{mac}")
+def module_identifier(module_id: int) -> tuple[str, str]:
+    """The registry identifier of the module device for Designer row ``module_id``."""
+    return (DOMAIN, f"module:{module_id}")
 
 
 def resolve_parent(
-    obj: AmpioObject, hub_device_id: str, module_device_ids: Mapping[int, str]
+    obj: AmpioObject,
+    hub_device_id: str,
+    module_device_ids: Mapping[int, str],
+    mserv_id: int | None,
 ) -> str:
-    """The device an object's child device belongs under.
+    """The device an object's child hangs under: its module, or the hub.
 
-    An object is a channel of the module that carries it, so its child
-    hangs under that module. The mac comes from the leaf id, or from the
-    leaf-bearing siblings on the same module when Designer cleared the
-    leaf; both ride the object catalogue every account tier receives. The
-    hub takes a server-owned object, an object with neither mac, and an
-    object whose mac names no module device the account was served.
+    The Designer module row id rides every object row on both account
+    tiers, leaf or no leaf, so the tree never depends on the leaf id. The
+    M-SERV's own objects sit on the hub.
     """
-    if obj.is_server_owned:
+    module_id = obj.id_urzadzenia
+    if obj.is_server_owned or module_id is None or module_id == mserv_id:
         return hub_device_id
-    mac = obj.module_mac or obj.sibling_module_mac
-    if mac is None:
-        return hub_device_id
-    return module_device_ids.get(mac, hub_device_id)
-
-
-def parent_needs_repair(stored: str | None, resolved: str, hub_device_id: str) -> bool:
-    """Whether a stored parent should be reported and offered for a delete.
-
-    The repair moves a child from the hub to a module it now resolves to;
-    the registry cannot re-parent it any other way. It never runs in
-    reverse: a resolved hub does not outrank a stored module, because the
-    hub is what an object falls back to when it (temporarily or not) names
-    no module, not a parent a live child should ever be moved to.
-    """
-    return stored is not None and resolved not in (stored, hub_device_id)
+    return module_device_ids.get(module_id, hub_device_id)
 
 
 async def async_turn_on_honoring_pulse(
@@ -116,13 +102,11 @@ class AmpioEntity(Entity):
         # keeps its own entity.
         self._key = f"{obj.object_key}{key_suffix}"
         self._attr_unique_id = self._key
-        # The registry cannot re-parent a child device, and it rejects the
-        # entity outright when the device info names another parent than
-        # the one the child was created under. So the stored parent wins
-        # over the one the object resolves to now, which keeps the entity
-        # in the set; setup reports the mismatch, and a delete repairs it.
-        parent = data.child_parent_ids.get(obj.object_key) or resolve_parent(
-            obj, data.hub_device_id, data.module_device_ids
+        # An object is a channel of its module, and its child device hangs
+        # under that module. The registry cannot re-parent a child, so a
+        # move in Designer needs a delete, which the removal hook permits.
+        parent = resolve_parent(
+            obj, data.hub_device_id, data.module_device_ids, data.mserv_id
         )
         device_info = ChildDeviceInfo(
             identifiers={(DOMAIN, obj.object_key)}, parent_device_id=parent

@@ -48,9 +48,9 @@ def snapshot(snapshot: SnapshotAssertion) -> SnapshotAssertion:
 
 MSERV_MAC = "47846"
 # Identifiers carry no server mac: the hub is one constant, a module is its
-# leaf-embedded mac, an object is its Designer id.
+# Designer row id, an object is its Designer id.
 HUB_IDENTIFIER = (DOMAIN, "hub")
-MSENS_IDENTIFIER = (DOMAIN, "module:52111")
+MSENS_IDENTIFIER = (DOMAIN, "module:17")
 # The module device is named from the admin-only module catalogue, and it
 # falls back to the leaf-embedded mac that both account tiers receive.
 MSENS_DEVICE_NAME = "m-sens salon"
@@ -109,7 +109,6 @@ def make_object(
     lammel: int | None = None,
     thermostat: ThermostatState | None = None,
     czas: int = 0,
-    sibling_module_mac: int | None = None,
 ) -> AmpioObject:
     """Build a classified object the way discovery would."""
     return AmpioObject(
@@ -126,7 +125,6 @@ def make_object(
         lammel=lammel,
         thermostat=thermostat,
         czas=czas,
-        sibling_module_mac=sibling_module_mac,
     )
 
 
@@ -406,18 +404,6 @@ def mock_client_class() -> Generator[MagicMock]:
         client.fetch_scenes.return_value = list(DEFAULT_SCENES)
         client.fetch_rooms.return_value = dict(DEFAULT_ROOMS)
         client.resolve_records.return_value = EMPTY_SWEEP
-
-        # Mirrors the real resolver's documented contract over the seeded
-        # catalogue: join by device_id, gated on the leaf-derived mac.
-        def module_for(obj: AmpioObject) -> AmpioModule | None:
-            if obj.id_urzadzenia is None:
-                return None
-            module = client.modules.get(obj.id_urzadzenia)
-            if module is None or module.mac is None or module.mac != obj.module_mac:
-                return None
-            return module
-
-        client.module_for.side_effect = module_for
 
         # Track live registrations so unsubscribing works: emit() must not
         # reach listeners from a torn-down setup. Unsubscribing is idempotent,

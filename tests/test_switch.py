@@ -4,7 +4,7 @@ from collections.abc import Generator
 from dataclasses import replace
 from unittest.mock import MagicMock, patch
 
-from ampio_mqtt import ObjectUpdated
+from ampio_mqtt import AccessTier, ObjectUpdated
 import pytest
 from pytest_homeassistant_custom_component.common import (
     MockConfigEntry,
@@ -194,28 +194,20 @@ async def test_read_only_object_rejects_writes(
     mock_client.turn_off.assert_not_called()
 
 
-async def test_leafless_object_parents_through_its_siblings(
+async def test_leafless_object_keeps_its_module(
     hass: HomeAssistant,
     mock_client: MagicMock,
     mock_config_entry: MockConfigEntry,
     entity_registry: er.EntityRegistry,
     device_registry: dr.DeviceRegistry,
 ) -> None:
-    """A relay whose leaf id Designer cleared still joins its module.
+    """A relay whose leaf id Designer cleared still hangs under its module.
 
-    Unchecking an object's Matter box saves the row without ``leafId``.
-    The library reads the module mac out of the leaf-bearing siblings on
-    the same module id, on both account tiers, and the child parents
-    through it.
+    The tree reads the Designer module row id, which every object carries
+    on both account tiers whatever its leaf says.
     """
     mock_client.objects[98] = make_object(
-        98,
-        "przekaznik",
-        0,
-        leaf_id="",
-        opis_menu="Leafless",
-        state="0",
-        sibling_module_mac=52111,
+        98, "przekaznik", 0, leaf_id="", opis_menu="Leafless", state="0"
     )
     await setup_integration(hass, mock_config_entry)
 
@@ -232,63 +224,30 @@ async def test_leafless_object_parents_through_its_siblings(
     assert hass.states.get(pinned_id("switch", 98)).state == STATE_OFF
 
 
-async def test_leafless_object_without_siblings_parents_to_the_hub(
+@pytest.mark.parametrize("restricted", [False, True], ids=["admin", "restricted"])
+async def test_leafless_server_object_parents_to_the_hub(
     hass: HomeAssistant,
     mock_client: MagicMock,
     mock_config_entry: MockConfigEntry,
     entity_registry: er.EntityRegistry,
     device_registry: dr.DeviceRegistry,
+    restricted: bool,
 ) -> None:
-    """Without a leaf mac and without a sibling mac, the hub takes the child."""
-    mock_client.objects[98] = make_object(
-        98,
-        "przekaznik",
-        0,
-        leaf_id="",
-        id_urzadzenia=999,
-        opis_menu="Leafless",
-        state="0",
-    )
-    await setup_integration(hass, mock_config_entry)
+    """An M-SERV output without a leaf hangs under the hub on both tiers.
 
-    entry = entity_registry.async_get(pinned_id("switch", 98))
-    assert entry is not None
-    hub = device_registry.async_get_device_by_identifier(
-        HUB_IDENTIFIER, mock_config_entry.entry_id
-    )
-    assert hub is not None
-    assert entry.device_id is not None
-    child = device_registry.async_get(entry.device_id)
-    assert isinstance(child, dr.ChildDeviceEntry)
-    assert child.parent_device_id == hub.id
-
-
-async def test_leafless_object_with_an_unknown_sibling_parents_to_the_hub(
-    hass: HomeAssistant,
-    mock_client: MagicMock,
-    mock_config_entry: MockConfigEntry,
-    entity_registry: er.EntityRegistry,
-    device_registry: dr.DeviceRegistry,
-) -> None:
-    """A sibling mac that names no module device falls back to the hub.
-
-    The module devices are built from the leaf-embedded macs of the
-    objects the account receives, so a sibling mac outside that set has no
-    device to parent to.
+    The admin catalogue names the M-SERV row; a restricted account learns
+    it from any server-owned object whose leaf embeds the M-SERV mac.
     """
-    mock_client.objects[98] = make_object(
-        98,
-        "przekaznik",
-        0,
-        leaf_id="",
-        id_urzadzenia=999,
-        opis_menu="Leafless",
-        state="0",
-        sibling_module_mac=0xDEAD,
+    if restricted:
+        mock_client.modules = {}
+        mock_client.mserv = None
+        mock_client.access_tier = AccessTier.RESTRICTED
+    mock_client.objects[99] = make_object(
+        99, "przekaznik", 0, leaf_id="", id_urzadzenia=1, opis_menu="Pompa", state="0"
     )
     await setup_integration(hass, mock_config_entry)
 
-    entry = entity_registry.async_get(pinned_id("switch", 98))
+    entry = entity_registry.async_get(pinned_id("switch", 99))
     assert entry is not None
     hub = device_registry.async_get_device_by_identifier(
         HUB_IDENTIFIER, mock_config_entry.entry_id

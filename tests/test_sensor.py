@@ -250,10 +250,12 @@ async def test_unexposable_objects_are_skipped(
 
 
 @pytest.mark.parametrize(
-    "leaf_id",
+    ("leaf_id", "id_urzadzenia"),
     [
-        pytest.param("0_nomac_temp_0_1", id="unparseable-module-mac"),
-        pytest.param("0_1_temp_0_1", id="server-owned"),
+        # A row naming no module has no module device to hang under.
+        pytest.param("0_nomac_temp_0_1", None, id="no-module-row"),
+        # The M-SERV's own leaf outranks whatever row the object carries.
+        pytest.param("0_1_temp_0_1", 17, id="server-owned"),
     ],
 )
 async def test_hub_anchored_objects(
@@ -263,10 +265,17 @@ async def test_hub_anchored_objects(
     device_registry: dr.DeviceRegistry,
     entity_registry: er.EntityRegistry,
     leaf_id: str,
+    id_urzadzenia: int | None,
 ) -> None:
-    """The M-SERV's own objects and unresolvable leafs get a child of the hub."""
+    """The M-SERV's own objects and rows naming no module get a child of the hub."""
     mock_client.objects[500] = make_object(
-        500, "temp", 1, leaf_id=leaf_id, funkcja=5, opis_menu="Hub sensor"
+        500,
+        "temp",
+        1,
+        leaf_id=leaf_id,
+        id_urzadzenia=id_urzadzenia,
+        funkcja=5,
+        opis_menu="Hub sensor",
     )
 
     await setup_integration(hass, mock_config_entry)
@@ -294,7 +303,7 @@ async def test_module_without_catalogue_row_gets_bare_device(
     device_registry: dr.DeviceRegistry,
     entity_registry: er.EntityRegistry,
 ) -> None:
-    """A leaf-derived mac with no module row still keys its own device."""
+    """A module row the catalogue does not list still keys its own device."""
     mock_client.objects[500] = make_object(
         500,
         "temp",
@@ -307,7 +316,7 @@ async def test_module_without_catalogue_row_gets_bare_device(
     await setup_integration(hass, mock_config_entry)
 
     device = device_registry.async_get_device_by_identifier(
-        (DOMAIN, f"module:{0xDEAD}"), mock_config_entry.entry_id
+        (DOMAIN, "module:99"), mock_config_entry.entry_id
     )
     assert device is not None
     assert device.name == "Ampio module 0xDEAD"
