@@ -19,6 +19,11 @@ class AmpioData:
     # The app room of each object, from the tier-shared room tables. It
     # seeds a child device's area once, at the device's first creation.
     rooms: dict[int, str]
+    # The parent each object's child device already sits under, read from
+    # the registry at setup. A child device cannot be re-parented, so this
+    # is the parent an entity must keep naming; an object missing here has
+    # no child device yet and takes the parent it resolves to.
+    child_parent_ids: dict[str, str]
 
 
 type AmpioConfigEntry = ConfigEntry[AmpioData]

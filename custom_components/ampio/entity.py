@@ -1,7 +1,7 @@
 """Base entity for the Ampio integration."""
 
 import asyncio
-from collections.abc import Iterator
+from collections.abc import Iterator, Mapping
 from typing import Final, override
 
 from ampio_mqtt import (
@@ -44,6 +44,26 @@ def module_identifier(mac: int) -> tuple[str, str]:
     return (DOMAIN, f"module:{mac}")
 
 
+def resolve_parent(
+    obj: AmpioObject, hub_device_id: str, module_device_ids: Mapping[int, str]
+) -> str:
+    """The device an object's child device belongs under.
+
+    An object is a channel of the module that carries it, so its child
+    hangs under that module. The mac comes from the leaf id, or from the
+    leaf-bearing siblings on the same module when Designer cleared the
+    leaf; both ride the object catalogue every account tier receives. The
+    hub takes a server-owned object, an object with neither mac, and an
+    object whose mac names no module device the account was served.
+    """
+    if obj.is_server_owned:
+        return hub_device_id
+    mac = obj.module_mac or obj.sibling_module_mac
+    if mac is None:
+        return hub_device_id
+    return module_device_ids.get(mac, hub_device_id)
+
+
 async def async_turn_on_honoring_pulse(
     client: AmpioClient, obj: AmpioObject | None, object_id: int
 ) -> None:
@@ -84,22 +104,14 @@ class AmpioEntity(Entity):
         # keeps its own entity.
         self._key = f"{obj.object_key}{key_suffix}"
         self._attr_unique_id = self._key
-        # An object is a channel of the module that carries it, and its
-        # child device hangs under that module. The parent derives from the
-        # leaf-embedded mac, or from the mac its leaf-bearing siblings embed
-        # when Designer cleared the leaf; both ride the object catalogue
-        # every account tier receives. A server-owned object, or one with
-        # neither mac, hangs under the hub. The registry cannot re-parent a
-        # child, so the choice stands from the first creation on.
-        if obj.is_server_owned:
-            parent = data.hub_device_id
-        else:
-            mac = obj.module_mac or obj.sibling_module_mac
-            parent = (
-                data.module_device_ids.get(mac, data.hub_device_id)
-                if mac is not None
-                else data.hub_device_id
-            )
+        # The registry cannot re-parent a child device, and it rejects the
+        # entity outright when the device info names another parent than
+        # the one the child was created under. So the stored parent wins
+        # over the one the object resolves to now, which keeps the entity
+        # in the set; setup reports the mismatch, and a delete repairs it.
+        parent = data.child_parent_ids.get(obj.object_key) or resolve_parent(
+            obj, data.hub_device_id, data.module_device_ids
+        )
         device_info = ChildDeviceInfo(
             identifiers={(DOMAIN, obj.object_key)}, parent_device_id=parent
         )

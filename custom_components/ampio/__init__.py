@@ -26,7 +26,7 @@ from homeassistant.helpers import device_registry as dr
 
 from .const import DOMAIN, PLATFORMS
 from .data import AmpioConfigEntry, AmpioData
-from .entity import HUB_IDENTIFIER, eligible_objects, module_identifier
+from .entity import HUB_IDENTIFIER, eligible_objects, module_identifier, resolve_parent
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -164,6 +164,29 @@ async def async_setup_entry(hass: HomeAssistant, entry: AmpioConfigEntry) -> boo
         )
         module_device_ids[mac] = module_device.id
 
+    # A child device keeps the parent it was created under: the registry
+    # cannot re-parent one, and it rejects an entity whose device info
+    # names another parent, which would drop the entity from the set. So
+    # the parent already stored wins, and an object that now resolves
+    # elsewhere is reported instead. Deleting the device is the repair,
+    # and the next reload builds it again under the resolved parent.
+    child_parent_ids: dict[str, str] = {}
+    for obj in eligible_objects(client):
+        child = device_registry.async_get_child_device_by_identifier(
+            (DOMAIN, obj.object_key), entry.entry_id
+        )
+        if child is None:
+            continue
+        child_parent_ids[obj.object_key] = child.parent_device_id
+        if child.parent_device_id != resolve_parent(obj, hub.id, module_device_ids):
+            _LOGGER.warning(
+                "Ampio object %s (%s) sits under a device that is no longer its "
+                "parent; delete its device in Home Assistant, and it comes back "
+                "under the right one on the next reload",
+                obj.id,
+                obj.opis_menu,
+            )
+
     # The room map seeds each object child's area at its first creation,
     # and the diagnostics download carries it. Nothing in the entity or
     # device path depends on it after that, so a failure costs the seed and
@@ -189,7 +212,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: AmpioConfigEntry) -> boo
             hass, _async_sweep_records(client), "ampio_resolve_records"
         )
 
-    entry.runtime_data = AmpioData(client, hub.id, module_device_ids, rooms)
+    entry.runtime_data = AmpioData(
+        client, hub.id, module_device_ids, rooms, child_parent_ids
+    )
 
     was_unavailable = False
 
@@ -236,16 +261,24 @@ async def async_unload_entry(hass: HomeAssistant, entry: AmpioConfigEntry) -> bo
 async def async_remove_config_entry_device(
     hass: HomeAssistant, entry: AmpioConfigEntry, device_entry: dr.AnyDeviceEntry
 ) -> bool:
-    """Allow removing devices whose objects the account no longer receives, and the child of a leafless object, which can only regain its module through a delete."""
+    """Allow removing a device that no longer describes the install.
+
+    The hub always stays. A module device stays while the account still
+    receives an object on it, and an object's child device stays while the
+    account still receives that object. The one live child that goes is
+    the one whose stored parent is no longer the device its object
+    resolves to: the registry cannot re-parent a child, so the delete is
+    how the user moves it, and the next reload builds it again under the
+    resolved parent with its id, its area, and its name restored.
+    """
     data = entry.runtime_data
     live: set[tuple[str, str]] = {HUB_IDENTIFIER}
     for obj in eligible_objects(data.client):
         if not obj.is_server_owned and (mac := obj.module_mac) is not None:
             live.add(module_identifier(mac))
-        # A leafless object's parent is chosen once, from its siblings or
-        # the hub, and the registry cannot re-parent a child. Its device
-        # stays deletable, so it can come back under a better parent once
-        # one resolves.
-        if obj.leaf_key is not None:
+        stored = data.child_parent_ids.get(obj.object_key)
+        if stored is None or stored == resolve_parent(
+            obj, data.hub_device_id, data.module_device_ids
+        ):
             live.add((DOMAIN, obj.object_key))
     return not any(identifier in live for identifier in device_entry.identifiers)

@@ -21,7 +21,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from custom_components.ampio import async_remove_config_entry_device
 from custom_components.ampio.const import DOMAIN
 from homeassistant.config_entries import ConfigEntryState
-from homeassistant.const import EVENT_HOMEASSISTANT_STOP
+from homeassistant.const import EVENT_HOMEASSISTANT_STOP, STATE_OFF
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import (
     area_registry as ar,
@@ -137,7 +137,7 @@ async def test_hub_device(
     mock_config_entry: MockConfigEntry,
     device_registry: dr.DeviceRegistry,
 ) -> None:
-    """The hub device carries the server identity; module devices link to it."""
+    """The hub device carries the server's serial and version; module devices link to it."""
     await setup_integration(hass, mock_config_entry)
 
     hub = device_registry.async_get_device_by_identifier(
@@ -676,7 +676,114 @@ async def test_every_object_gets_a_child_device(
         if entity.domain == "scene":
             assert entity.device_id == hub.id
         else:
+            assert entity.device_id is not None
             assert entity.device_id not in {hub.id, module.id}
+
+
+async def test_server_owned_object_ignores_its_sibling_mac(
+    hass: HomeAssistant,
+    mock_client: MagicMock,
+    mock_config_entry: MockConfigEntry,
+    device_registry: dr.DeviceRegistry,
+) -> None:
+    """A server-owned object stays on the hub, sibling mac or not.
+
+    The M-SERV's own objects carry the module id of the server itself, and
+    a sibling mac read off that id must not move one under a module
+    device.
+    """
+    mock_client.objects[121] = replace(
+        mock_client.objects[121], sibling_module_mac=52111
+    )
+
+    await setup_integration(hass, mock_config_entry)
+
+    hub = device_registry.async_get_device_by_identifier(
+        HUB_IDENTIFIER, mock_config_entry.entry_id
+    )
+    assert hub is not None
+    child = device_registry.async_get_child_device_by_identifier(
+        (DOMAIN, unique_id(121)), mock_config_entry.entry_id
+    )
+    assert child is not None
+    assert child.parent_device_id == hub.id
+
+
+async def test_regained_parent_keeps_the_entity_until_the_user_deletes(
+    hass: HomeAssistant,
+    mock_client: MagicMock,
+    mock_config_entry: MockConfigEntry,
+    device_registry: dr.DeviceRegistry,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A child keeps its first parent, and only a delete moves it.
+
+    The registry refuses to re-parent a child device, and an entity whose
+    device info names another parent is dropped. So a leafless object that
+    regains its leaf keeps the child it was created under, the setup names
+    it in the log, and the user's delete is what lets it come back under
+    the module.
+    """
+    leafless = make_object(
+        98,
+        "przekaznik",
+        0,
+        leaf_id="",
+        id_urzadzenia=999,
+        opis_menu="Leafless",
+        state="0",
+    )
+    mock_client.objects[98] = leafless
+    await setup_integration(hass, mock_config_entry)
+
+    hub = device_registry.async_get_device_by_identifier(
+        HUB_IDENTIFIER, mock_config_entry.entry_id
+    )
+    module = device_registry.async_get_device_by_identifier(
+        MSENS_IDENTIFIER, mock_config_entry.entry_id
+    )
+    assert hub is not None
+    assert module is not None
+    child = device_registry.async_get_child_device_by_identifier(
+        (DOMAIN, unique_id(98)), mock_config_entry.entry_id
+    )
+    assert child is not None
+    assert child.parent_device_id == hub.id
+    assert hass.states.get(pinned_id("switch", 98)).state == STATE_OFF
+
+    mock_client.objects[98] = replace(
+        leafless, leaf_id="0_cb8f_rel_0_9", id_urzadzenia=17
+    )
+    caplog.clear()
+    await hass.config_entries.async_reload(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(pinned_id("switch", 98)).state == STATE_OFF
+    regained = device_registry.async_get_child_device_by_identifier(
+        (DOMAIN, unique_id(98)), mock_config_entry.entry_id
+    )
+    assert regained is not None
+    assert regained.id == child.id
+    assert regained.parent_device_id == hub.id
+    parent_warnings = [
+        record
+        for record in caplog.records
+        if record.levelname == "WARNING" and "Ampio object 98" in record.getMessage()
+    ]
+    assert len(parent_warnings) == 1
+    assert await async_remove_config_entry_device(hass, mock_config_entry, regained)
+
+    device_registry.async_remove_device(regained.id)
+    await hass.config_entries.async_reload(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    moved = device_registry.async_get_child_device_by_identifier(
+        (DOMAIN, unique_id(98)), mock_config_entry.entry_id
+    )
+    assert moved is not None
+    assert moved.id == child.id
+    assert moved.parent_device_id == module.id
+    assert hass.states.get(pinned_id("switch", 98)).state == STATE_OFF
 
 
 async def test_remove_config_entry_device(
@@ -685,13 +792,22 @@ async def test_remove_config_entry_device(
     mock_config_entry: MockConfigEntry,
     device_registry: dr.DeviceRegistry,
 ) -> None:
-    """The hub, live modules, and live leaf-bearing objects are protected.
+    """The hub, live modules, and live children on the right parent are protected.
 
-    A leafless object's parent is chosen once, from its siblings or the
-    hub, and the registry cannot re-parent a child. Its device is
-    deletable at any time, so it can come back under a better parent once
-    one resolves.
+    A child whose stored parent is no longer the one its object resolves
+    to is removable, because the registry cannot re-parent a child and the
+    delete is what lets it come back under the module.
     """
+    leafless = make_object(
+        98,
+        "przekaznik",
+        0,
+        leaf_id="",
+        id_urzadzenia=999,
+        opis_menu="Leafless",
+        state="0",
+    )
+    mock_client.objects[98] = leafless
     await setup_integration(hass, mock_config_entry)
 
     hub = device_registry.async_get_device_by_identifier(
@@ -703,15 +819,21 @@ async def test_remove_config_entry_device(
     child = device_registry.async_get_child_device_by_identifier(
         (DOMAIN, unique_id(74)), mock_config_entry.entry_id
     )
+    orphan = device_registry.async_get_child_device_by_identifier(
+        (DOMAIN, unique_id(98)), mock_config_entry.entry_id
+    )
     assert hub is not None
     assert module_device is not None
     assert child is not None
+    assert orphan is not None
+    assert orphan.parent_device_id == hub.id
 
     assert not await async_remove_config_entry_device(hass, mock_config_entry, hub)
     assert not await async_remove_config_entry_device(
         hass, mock_config_entry, module_device
     )
     assert not await async_remove_config_entry_device(hass, mock_config_entry, child)
+    assert not await async_remove_config_entry_device(hass, mock_config_entry, orphan)
 
     # An object Designer no longer has leaves a stale child behind. Home
     # Assistant keeps such a device itself: its cleanup pass spares every
@@ -724,8 +846,14 @@ async def test_remove_config_entry_device(
     )
     assert await async_remove_config_entry_device(hass, mock_config_entry, stale)
 
-    mock_client.objects[74] = replace(mock_client.objects[74], leaf_id="")
-    assert await async_remove_config_entry_device(hass, mock_config_entry, child)
+    # The leaf comes back, and the child that was created under the hub
+    # now resolves to the module device instead.
+    mock_client.objects[98] = replace(
+        leafless, leaf_id="0_cb8f_rel_0_9", id_urzadzenia=17
+    )
+    await hass.config_entries.async_reload(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
+    assert await async_remove_config_entry_device(hass, mock_config_entry, orphan)
 
     # Drop every object on the module: its device goes stale too.
     for object_id in [

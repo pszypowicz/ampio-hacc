@@ -261,3 +261,40 @@ async def test_leafless_object_without_siblings_parents_to_the_hub(
     child = device_registry.async_get(entry.device_id)
     assert isinstance(child, dr.ChildDeviceEntry)
     assert child.parent_device_id == hub.id
+
+
+async def test_leafless_object_with_an_unknown_sibling_parents_to_the_hub(
+    hass: HomeAssistant,
+    mock_client: MagicMock,
+    mock_config_entry: MockConfigEntry,
+    entity_registry: er.EntityRegistry,
+    device_registry: dr.DeviceRegistry,
+) -> None:
+    """A sibling mac that names no module device falls back to the hub.
+
+    The module devices are built from the leaf-embedded macs of the
+    objects the account receives, so a sibling mac outside that set has no
+    device to parent to.
+    """
+    mock_client.objects[98] = make_object(
+        98,
+        "przekaznik",
+        0,
+        leaf_id="",
+        id_urzadzenia=999,
+        opis_menu="Leafless",
+        state="0",
+        sibling_module_mac=0xDEAD,
+    )
+    await setup_integration(hass, mock_config_entry)
+
+    entry = entity_registry.async_get(pinned_id("switch", 98))
+    assert entry is not None
+    hub = device_registry.async_get_device_by_identifier(
+        HUB_IDENTIFIER, mock_config_entry.entry_id
+    )
+    assert hub is not None
+    assert entry.device_id is not None
+    child = device_registry.async_get(entry.device_id)
+    assert isinstance(child, dr.ChildDeviceEntry)
+    assert child.parent_device_id == hub.id
