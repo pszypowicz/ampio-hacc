@@ -368,7 +368,7 @@ async def test_pulse_time_diagnostic(
     none.
     """
     for oid in (72, 82):
-        mock_client.objects[oid] = replace(mock_client.objects[oid], pulse_ms=5000)
+        mock_client.objects[oid] = replace(mock_client.objects[oid], czas=500)
     await setup_integration(hass, mock_config_entry)
 
     entry = entity_registry.async_get(pinned_id("sensor", 150, "_pulse"))

@@ -120,7 +120,7 @@ async def test_timed_lights_pulse_on_turn_on(
     sends it, as the Ampio app does - the staircase-timer case.
     """
     for oid, pulse in ((73, 120000), (71, 30000)):
-        mock_client.objects[oid] = replace(mock_client.objects[oid], pulse_ms=pulse)
+        mock_client.objects[oid] = replace(mock_client.objects[oid], czas=pulse // 10)
     await setup_integration(hass, mock_config_entry)
 
     await hass.services.async_call(

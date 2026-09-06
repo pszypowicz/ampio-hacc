@@ -150,7 +150,7 @@ async def test_timed_relay_pulses_on_turn_on(
     sends it, as the Ampio app does. The off write stays plain.
     """
     obj = mock_client.objects[74]
-    mock_client.objects[74] = replace(obj, pulse_ms=90000)
+    mock_client.objects[74] = replace(obj, czas=9000)
     await setup_integration(hass, mock_config_entry)
 
     await hass.services.async_call(
