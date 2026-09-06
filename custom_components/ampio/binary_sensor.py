@@ -5,7 +5,6 @@ from typing import override
 from ampio_mqtt import AmpioObject, InputKind
 
 from homeassistant.components.binary_sensor import (
-    BinarySensorDeviceClass,
     BinarySensorEntity,
     BinarySensorEntityDescription,
 )
@@ -18,15 +17,13 @@ from .entity import AmpioEntity, eligible_objects
 PARALLEL_UPDATES = 0
 
 # Descriptions for the read-only input kinds, keyed by ``InputKind.key``.
-# Switchable inputs (the writable flags) belong to the switch platform;
-# objects classified into any other kind are not exposed.
+# Switchable inputs (the writable flags) belong to the switch platform, the
+# system kinds (the M-SERV's own detection and simulation objects) never
+# reach a platform, and objects classified into any other kind are not
+# exposed.
 BINARY_SENSOR_DESCRIPTIONS: dict[str, BinarySensorEntityDescription] = {
     description.key: description
     for description in (
-        BinarySensorEntityDescription(
-            key="detekcja",
-            device_class=BinarySensorDeviceClass.MOTION,
-        ),
         BinarySensorEntityDescription(
             key="wej",
             translation_key="input",

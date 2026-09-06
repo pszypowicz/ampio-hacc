@@ -12,6 +12,16 @@ The fix, in the current web Designer: touch every affected output individually -
 - The catalogue column, however, updates only for the outputs you actually edited in the UI. An untouched neighbor keeps its stale column even though its record just went over the wire again - which is why every output needs its own flip, however correct it looks in Designer.
 - Designer registers an edit only on a real change, so flip the value away and back. A Lokalizacja change counts too, and the tag rides along with it.
 
+## The Matter checkbox clears the leaf id
+
+Every object row carries a `leafId`, the pointer to the module output that drives it. The integration reads the module mac out of it, so the leaf id decides which module device an entity sits on. Designer's per-object "Matter" checkbox rewrites that field on every save. A check writes it back from the linked output record and re-syncs the `type` column from the module record. An uncheck saves the row without it, and the M-SERV stores an empty value.
+
+The object survives the uncheck. It keeps its type, its rooms, and its state. The integration keeps its entity, its id, its name, and its area. What it loses is its module. Without a leaf mac the entity moves to the `M-SERV` hub on the next reload, on both account tiers. A re-check in Designer writes the leaf id back, and the entity returns to its module on the reload after that.
+
+So leave the Matter box alone on every object that has an entity here, in either state. To stop the M-SERV's Matter bridge, use "Clear configuration" in Designer's Matter panel. That wipes the bridge's pairing and restarts it unpaired, and it touches no object. A check on a relay also re-syncs the type column from the module record, so a relay whose record lost its Lighting tag comes back as a switch (see the section above).
+
+Verified on server 1865 with a virtual test relay, and pinned by the integration's tests: a leafless object yields an entity on the hub, and a hidden row yields none.
+
 ## The stability contract
 
 Ampio accounts upgrade and downgrade between the admin login and app-created users. The integration therefore derives everything that defines an entity's platform or the device topology from data the restricted tier receives.

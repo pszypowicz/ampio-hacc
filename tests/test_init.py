@@ -182,7 +182,7 @@ async def test_restricted_account_groups_by_module_mac(
     entities = er.async_entries_for_config_entry(
         entity_registry, mock_config_entry.entry_id
     )
-    assert len(entities) == 27
+    assert len(entities) == 26
     # The tree is two deep. Scenes and every server-owned object sit on the
     # hub; every other entity sits on its module device. No entity rides a
     # device of its own, whatever its platform.

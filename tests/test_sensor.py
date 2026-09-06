@@ -194,8 +194,9 @@ async def test_broker_availability_flips_entities(
                 funkcja=5,
                 opis_menu="Ghost",
                 state="55.0",
+                params=16,
             ),
-            id="ghost-without-leaf",
+            id="hidden-ghost-without-leaf",
         ),
         pytest.param(
             make_object(

@@ -25,15 +25,12 @@ def eligible_objects(client: AmpioClient) -> Iterator[AmpioObject]:
     """The objects any platform may expose as entities.
 
     ``visible`` is the M-SERV's own predicate for what the user still sees
-    in Ampio Designer; ghost rows that survived removal fail it. The
-    ``leaf_key`` test then holds back the system objects, which the
-    M-SERV exposes without a ``leaf_id`` and which no platform covers.
+    in Ampio Designer: the hidden bit alone. A row without a ``leaf_id`` is
+    still an object, because Designer clears that field when an object's
+    Matter box is unchecked. ``is_system`` then holds back the M-SERV's
+    own detection and simulation objects, which no platform covers.
     """
-    return (
-        obj
-        for obj in client.objects.values()
-        if obj.visible and obj.leaf_key is not None
-    )
+    return (obj for obj in client.objects.values() if obj.visible and not obj.is_system)
 
 
 async def async_turn_on_honoring_pulse(
