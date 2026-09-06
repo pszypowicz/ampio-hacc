@@ -45,10 +45,16 @@ async def test_all_entities(
 
 
 @pytest.mark.usefixtures("button_only")
-async def test_press_maps_to_turn_on(
+async def test_press_pulses_for_the_time_or_releases(
     hass: HomeAssistant, mock_client: MagicMock, mock_config_entry: MockConfigEntry
 ) -> None:
-    """A press pulses for the configured time, or latches without one."""
+    """A press pulses for the configured time, or sends on then off without one.
+
+    The Ampio app presses a bell without a Designer time as two writes,
+    255 then 0, because the module never releases the output on its own.
+    A single on would latch it, and every later press would change
+    nothing.
+    """
     await setup_integration(hass, mock_config_entry)
 
     await hass.services.async_call(
@@ -59,6 +65,7 @@ async def test_press_maps_to_turn_on(
     )
     mock_client.set_value.assert_awaited_once_with(150, 255, pulse_ms=3000)
     mock_client.turn_on.assert_not_called()
+    mock_client.turn_off.assert_not_called()
 
     await hass.services.async_call(
         BUTTON_DOMAIN,
@@ -67,6 +74,13 @@ async def test_press_maps_to_turn_on(
         blocking=True,
     )
     mock_client.turn_on.assert_awaited_once_with(149)
+    mock_client.turn_off.assert_awaited_once_with(149)
+    order = [
+        name
+        for name, _args, _kwargs in mock_client.mock_calls
+        if name in ("turn_on", "turn_off")
+    ]
+    assert order == ["turn_on", "turn_off"]
 
 
 async def test_bell_wins_over_light_tag(

@@ -78,6 +78,24 @@ async def async_turn_on_honoring_pulse(
         await client.turn_on(object_id)
 
 
+async def async_press(
+    client: AmpioClient, obj: AmpioObject | None, object_id: int
+) -> None:
+    """Send the single press a bell object is meant for.
+
+    With a Designer time the press is the timed write, which the server
+    releases by itself. Without one the app writes 255 and then 0, because
+    a module never releases an output on its own: a lone on latches it,
+    and every later press changes nothing. The two writes go out in order
+    on one connection, which is the pulse the app produces.
+    """
+    if obj is not None and obj.pulse_ms:
+        await client.set_value(object_id, 255, pulse_ms=obj.pulse_ms)
+        return
+    await client.turn_on(object_id)
+    await client.turn_off(object_id)
+
+
 class AmpioEntity(Entity):
     """Entity backed by one Ampio object."""
 

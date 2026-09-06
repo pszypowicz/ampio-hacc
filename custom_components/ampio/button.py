@@ -11,7 +11,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .const import DOMAIN
 from .data import AmpioConfigEntry
-from .entity import AmpioEntity, async_turn_on_honoring_pulse, eligible_objects
+from .entity import AmpioEntity, async_press, eligible_objects
 
 PARALLEL_UPDATES = 0
 
@@ -53,9 +53,9 @@ class AmpioButton(AmpioEntity, ButtonEntity):
         """Send the single press the bell object is meant for.
 
         A configured Designer time makes the press a timed pulse; without
-        one the press latches, matching the app. A Designer read-only
-        object raises instead of sending a write the M-SERV would
-        silently drop.
+        one the press is on then off, matching the app. A Designer
+        read-only object raises instead of sending a write the M-SERV
+        would silently drop.
         """
         obj = self._object
         if obj is not None and obj.read_only:
@@ -63,4 +63,4 @@ class AmpioButton(AmpioEntity, ButtonEntity):
                 translation_domain=DOMAIN,
                 translation_key="read_only_object",
             )
-        await async_turn_on_honoring_pulse(self._data.client, obj, self._object_id)
+        await async_press(self._data.client, obj, self._object_id)
