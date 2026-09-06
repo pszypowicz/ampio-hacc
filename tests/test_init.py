@@ -685,7 +685,13 @@ async def test_remove_config_entry_device(
     mock_config_entry: MockConfigEntry,
     device_registry: dr.DeviceRegistry,
 ) -> None:
-    """Only devices with no live backing object may be deleted."""
+    """The hub, live modules, and live leaf-bearing objects are protected.
+
+    A leafless object's parent is chosen once, from its siblings or the
+    hub, and the registry cannot re-parent a child. Its device is
+    deletable at any time, so it can come back under a better parent once
+    one resolves.
+    """
     await setup_integration(hass, mock_config_entry)
 
     hub = device_registry.async_get_device_by_identifier(
@@ -694,24 +700,32 @@ async def test_remove_config_entry_device(
     module_device = device_registry.async_get_device_by_identifier(
         MSENS_IDENTIFIER, mock_config_entry.entry_id
     )
+    child = device_registry.async_get_child_device_by_identifier(
+        (DOMAIN, unique_id(74)), mock_config_entry.entry_id
+    )
     assert hub is not None
     assert module_device is not None
+    assert child is not None
 
     assert not await async_remove_config_entry_device(hass, mock_config_entry, hub)
     assert not await async_remove_config_entry_device(
         hass, mock_config_entry, module_device
     )
+    assert not await async_remove_config_entry_device(hass, mock_config_entry, child)
 
-    # A per-object device from the earlier topology matches no live module,
-    # so the user can delete it. Home Assistant keeps such a device itself:
-    # its cleanup pass spares every device that names a live config entry.
-    stale = device_registry.async_get_or_create(
+    # An object Designer no longer has leaves a stale child behind. Home
+    # Assistant keeps such a device itself: its cleanup pass spares every
+    # device that names a live config entry.
+    stale = device_registry.async_get_or_create_child(
         config_entry_id=mock_config_entry.entry_id,
-        identifiers={(DOMAIN, f"{MSERV_MAC}:obj:leaf_0_cb8f_led_0_1")},
-        name="Taras LED",
-        via_device_id=module_device.id,
+        identifiers={(DOMAIN, unique_id(999))},
+        parent_device_id=module_device.id,
+        name="Gone",
     )
     assert await async_remove_config_entry_device(hass, mock_config_entry, stale)
+
+    mock_client.objects[74] = replace(mock_client.objects[74], leaf_id="")
+    assert await async_remove_config_entry_device(hass, mock_config_entry, child)
 
     # Drop every object on the module: its device goes stale too.
     for object_id in [

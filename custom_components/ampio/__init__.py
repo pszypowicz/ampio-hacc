@@ -234,18 +234,18 @@ async def async_unload_entry(hass: HomeAssistant, entry: AmpioConfigEntry) -> bo
 
 
 async def async_remove_config_entry_device(
-    hass: HomeAssistant, entry: AmpioConfigEntry, device_entry: dr.DeviceEntry
+    hass: HomeAssistant, entry: AmpioConfigEntry, device_entry: dr.AnyDeviceEntry
 ) -> bool:
-    """Allow removing devices whose objects the account no longer receives.
-
-    Grant changes and tier downgrades leave devices behind by design; this
-    lets the user prune them while every live device stays protected. A
-    device left by an earlier topology matches nothing live and is therefore
-    deletable, which is how the per-object devices are pruned.
-    """
+    """Allow removing devices whose objects the account no longer receives, and the child of a leafless object, which can only regain its module through a delete."""
     data = entry.runtime_data
-    live = {HUB_IDENTIFIER}
+    live: set[tuple[str, str]] = {HUB_IDENTIFIER}
     for obj in eligible_objects(data.client):
         if not obj.is_server_owned and (mac := obj.module_mac) is not None:
             live.add(module_identifier(mac))
+        # A leafless object's parent is chosen once, from its siblings or
+        # the hub, and the registry cannot re-parent a child. Its device
+        # stays deletable, so it can come back under a better parent once
+        # one resolves.
+        if obj.leaf_key is not None:
+            live.add((DOMAIN, obj.object_key))
     return not any(identifier in live for identifier in device_entry.identifiers)
