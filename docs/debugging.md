@@ -22,7 +22,7 @@ Settings -> Devices & Services -> Ampio -> the three-dot menu on the entry -> Do
 - `typ_komponentu`: the object type (`przekaznik`, `flaga`, `roleta`, ...) - decides the base kind.
 - `type`: the Matter device-type tag mirror - `"256"` (0x0100) marks a relay as a light. An empty value on a relay you tagged in Designer is the half-existing-tag case: see [designer-quirks.md](designer-quirks.md).
 - `params`: the Designer flag bitfield - bit 4 hides an object, bit 6 marks it read-only.
-- `leafId`: the stable identity every unique ID builds on; empty for ghost rows the integration skips.
+- `leafId`: the module output the object drives, and the mac its device parents to - empty once Designer's Matter box is unchecked, which costs the object its module and not its entity.
 
 Privacy note before sharing a download publicly: credentials, host, and LAN address are redacted, but object, room, and module names are present verbatim.
 

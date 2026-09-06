@@ -37,9 +37,9 @@ Requires Home Assistant 2026.9.0 or newer. `ampio-mqtt` is installed automatical
 
 Every `0.0.x` release is beta. None of them carries a migration, so an update can change device names or the entity set with no upgrade path. Take a backup before you update.
 
-Your entity ids survive an update unless the release note says otherwise. Home Assistant builds an entity id once and keeps it after that. Version 0.0.14 changed the id form and the device tree, and its note carries the steps.
+Your entity ids survive an update unless the release note says otherwise. Home Assistant builds an entity id once and keeps it after that. Version 0.0.14 changed the id form and the device tree, and its note carries the steps. Delete the Ampio integration entry before you update to 0.0.14, and add it again afterwards. See the release note for the full steps.
 
-If an update leaves you with missing entities or entities that stay unavailable, remove the integration and add it again. That is the supported first step, not a last resort. Home Assistant remembers a removed entity for 30 days, so a re-add restores your entity ids, your renames, and your areas.
+If an update leaves you with missing entities or entities that stay unavailable, remove the integration and add it again. That is the supported first step, not a last resort. Home Assistant remembers a removed entity for 30 days, so a re-add restores your entity ids, your renames, and your areas within one id form.
 
 See [docs/stale-entities.md](docs/stale-entities.md) to clean up an entity Ampio Designer no longer has, or to learn what happens to your ids when a release changes their form.
 
@@ -61,7 +61,7 @@ One physical output can carry several objects in Ampio Designer. Each object get
 
 If a relay tagged as a light in Designer surfaces as a switch, see [docs/designer-quirks.md](docs/designer-quirks.md).
 
-Do not toggle an object's Matter checkbox in Designer once the object has an entity here. Unchecking it clears the object's leaf id. The object keeps its module when a sibling output on the same module still has one, and hangs under the M-SERV hub otherwise. Check the box again, delete the object's device, and it comes back under its module with its area and name. To stop the M-SERV's Matter bridge, use "Clear configuration" in Designer's Matter panel instead. See [docs/designer-quirks.md](docs/designer-quirks.md).
+Do not toggle an object's Matter checkbox in Designer once the object has an entity here. Unchecking it clears the object's leaf id. The object keeps its module when a sibling output on the same module still has one, and hangs under the M-SERV hub otherwise. Which siblings you have follows your account's grant, so a restricted account can pin an object under the hub where an administrator account would have kept it on its module. To repair either case, check the box again and reload the integration. The entity stays available, and the log names the object. Delete that object's device, and it comes back under its module on the next reload, with its id, its area, and its name. To stop the M-SERV's Matter bridge, use "Clear configuration" in Designer's Matter panel instead. See [docs/designer-quirks.md](docs/designer-quirks.md).
 
 ## Relationship to home-assistant/core
 
