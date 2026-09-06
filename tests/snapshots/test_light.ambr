@@ -1,5 +1,5 @@
 # serializer version: 1
-# name: test_all_entities[light.ampio_47846_obj_71-entry]
+# name: test_all_entities[light.ampio_obj_71-entry]
   EntityRegistryEntrySnapshot({
     'aliases': list([
       None,
@@ -17,7 +17,7 @@
     'disabled_by': None,
     'domain': 'light',
     'entity_category': None,
-    'entity_id': 'light.ampio_47846_obj_71',
+    'entity_id': 'light.ampio_obj_71',
     'has_entity_name': True,
     'hidden_by': None,
     'icon': None,
@@ -33,14 +33,14 @@
     'original_name': 'Taras LED',
     'platform': 'ampio',
     'previous_unique_id': None,
-    'suggested_object_id': 'ampio_47846_obj_71',
+    'suggested_object_id': 'ampio_obj_71',
     'supported_features': 0,
     'translation_key': None,
-    'unique_id': '47846_obj_71',
+    'unique_id': 'obj_71',
     'unit_of_measurement': None,
   })
 # ---
-# name: test_all_entities[light.ampio_47846_obj_71-state]
+# name: test_all_entities[light.ampio_obj_71-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
       <LightEntityStateAttribute.BRIGHTNESS: 'brightness'>: 128,
@@ -52,14 +52,14 @@
       <EntityStateAttribute.SUPPORTED_FEATURES: 'supported_features'>: <LightEntityFeature: 0>,
     }),
     'context': <ANY>,
-    'entity_id': 'light.ampio_47846_obj_71',
+    'entity_id': 'light.ampio_obj_71',
     'last_changed': <ANY>,
     'last_reported': <ANY>,
     'last_updated': <ANY>,
     'state': 'on',
   })
 # ---
-# name: test_all_entities[light.ampio_47846_obj_72-entry]
+# name: test_all_entities[light.ampio_obj_72-entry]
   EntityRegistryEntrySnapshot({
     'aliases': list([
       None,
@@ -77,7 +77,7 @@
     'disabled_by': None,
     'domain': 'light',
     'entity_category': None,
-    'entity_id': 'light.ampio_47846_obj_72',
+    'entity_id': 'light.ampio_obj_72',
     'has_entity_name': True,
     'hidden_by': None,
     'icon': None,
@@ -93,14 +93,14 @@
     'original_name': 'Salon RGBW',
     'platform': 'ampio',
     'previous_unique_id': None,
-    'suggested_object_id': 'ampio_47846_obj_72',
+    'suggested_object_id': 'ampio_obj_72',
     'supported_features': 0,
     'translation_key': None,
-    'unique_id': '47846_obj_72',
+    'unique_id': 'obj_72',
     'unit_of_measurement': None,
   })
 # ---
-# name: test_all_entities[light.ampio_47846_obj_72-state]
+# name: test_all_entities[light.ampio_obj_72-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
       <LightEntityStateAttribute.BRIGHTNESS: 'brightness'>: 240,
@@ -131,14 +131,14 @@
       ),
     }),
     'context': <ANY>,
-    'entity_id': 'light.ampio_47846_obj_72',
+    'entity_id': 'light.ampio_obj_72',
     'last_changed': <ANY>,
     'last_reported': <ANY>,
     'last_updated': <ANY>,
     'state': 'on',
   })
 # ---
-# name: test_all_entities[light.ampio_47846_obj_73-entry]
+# name: test_all_entities[light.ampio_obj_73-entry]
   EntityRegistryEntrySnapshot({
     'aliases': list([
       None,
@@ -156,7 +156,7 @@
     'disabled_by': None,
     'domain': 'light',
     'entity_category': None,
-    'entity_id': 'light.ampio_47846_obj_73',
+    'entity_id': 'light.ampio_obj_73',
     'has_entity_name': True,
     'hidden_by': None,
     'icon': None,
@@ -172,14 +172,14 @@
     'original_name': 'Kinkiet',
     'platform': 'ampio',
     'previous_unique_id': None,
-    'suggested_object_id': 'ampio_47846_obj_73',
+    'suggested_object_id': 'ampio_obj_73',
     'supported_features': 0,
     'translation_key': None,
-    'unique_id': '47846_obj_73',
+    'unique_id': 'obj_73',
     'unit_of_measurement': None,
   })
 # ---
-# name: test_all_entities[light.ampio_47846_obj_73-state]
+# name: test_all_entities[light.ampio_obj_73-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
       <LightEntityStateAttribute.COLOR_MODE: 'color_mode'>: None,
@@ -190,7 +190,7 @@
       <EntityStateAttribute.SUPPORTED_FEATURES: 'supported_features'>: <LightEntityFeature: 0>,
     }),
     'context': <ANY>,
-    'entity_id': 'light.ampio_47846_obj_73',
+    'entity_id': 'light.ampio_obj_73',
     'last_changed': <ANY>,
     'last_reported': <ANY>,
     'last_updated': <ANY>,

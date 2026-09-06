@@ -21,16 +21,12 @@ from homeassistant.const import (
     EVENT_HOMEASSISTANT_STOP,
 )
 from homeassistant.core import Event, HomeAssistant, callback
-from homeassistant.exceptions import (
-    ConfigEntryAuthFailed,
-    ConfigEntryError,
-    ConfigEntryNotReady,
-)
+from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr
 
 from .const import DOMAIN, PLATFORMS
 from .data import AmpioConfigEntry, AmpioData
-from .entity import eligible_objects
+from .entity import HUB_IDENTIFIER, eligible_objects, module_identifier
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -110,13 +106,19 @@ async def async_setup_entry(hass: HomeAssistant, entry: AmpioConfigEntry) -> boo
         raise ConfigEntryNotReady(
             translation_domain=DOMAIN, translation_key="discovery_timeout"
         )
-    prefix = info.server_key
-    # A different M-SERV answering at the stored host must fail setup instead
-    # of silently re-keying every unique_id and device under its prefix.
-    if prefix != entry.unique_id:
-        raise ConfigEntryError(
-            translation_domain=DOMAIN, translation_key="unexpected_device"
+    # Every identity the integration writes is server-free, so a different
+    # server answering at the stored host re-keys nothing. With one entry
+    # allowed, it is a replacement or the user's own re-pointing, and the
+    # entry takes the new server as its own.
+    if info.server_key != entry.unique_id:
+        _LOGGER.warning(
+            "The Ampio server at %s reports mac %s, and this entry was set up "
+            "with mac %s; taking the new server over",
+            entry.data[CONF_HOST],
+            info.server_key,
+            entry.unique_id,
         )
+        hass.config_entries.async_update_entry(entry, unique_id=info.server_key)
 
     # The hub is built from the server-info reply both account tiers receive.
     # Its name is the product name, because one M-SERV runs one install and
@@ -125,7 +127,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: AmpioConfigEntry) -> boo
     mserv = client.mserv
     hub = device_registry.async_get_or_create(
         config_entry_id=entry.entry_id,
-        identifiers={(DOMAIN, prefix)},
+        identifiers={HUB_IDENTIFIER},
         manufacturer="Ampio",
         name="M-SERV",
         model=mserv.model if mserv and mserv.model else "M-SERV",
@@ -135,11 +137,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: AmpioConfigEntry) -> boo
     )
 
     # One device per module, registered before the platforms load. The
-    # identifier derives from the leaf-embedded mac that every account tier
-    # receives, so the tree holds still across a tier change. The name comes
-    # from the admin catalogue where that answers, and the catalogue also
-    # decorates the model, the versions, and the serial. All of those follow
-    # the tier, and none of them reaches an entity id.
+    # identifier derives from the leaf-embedded mac alone, which every
+    # account tier receives, so the tree holds still across a tier change.
+    # The name comes from the admin catalogue where that answers, and the
+    # catalogue also decorates the model, the versions, and the serial. All
+    # of those follow the tier, and none of them reaches an entity id.
     seen_macs: set[int] = set()
     for obj in eligible_objects(client):
         if obj.is_server_owned or (mac := obj.module_mac) is None:
@@ -150,7 +152,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: AmpioConfigEntry) -> boo
         module = client.module_for(obj)
         device_registry.async_get_or_create(
             config_entry_id=entry.entry_id,
-            identifiers={(DOMAIN, f"{prefix}:{mac}")},
+            identifiers={module_identifier(mac)},
             name=_module_name(module, mac),
             manufacturer="Ampio",
             via_device_id=hub.id,
@@ -184,7 +186,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: AmpioConfigEntry) -> boo
             hass, _async_sweep_records(client), "ampio_resolve_records"
         )
 
-    entry.runtime_data = AmpioData(client, prefix)
+    entry.runtime_data = AmpioData(client)
 
     was_unavailable = False
 
@@ -239,11 +241,8 @@ async def async_remove_config_entry_device(
     deletable, which is how the per-object devices are pruned.
     """
     data = entry.runtime_data
-    live = {data.prefix}
+    live = {HUB_IDENTIFIER}
     for obj in eligible_objects(data.client):
         if not obj.is_server_owned and (mac := obj.module_mac) is not None:
-            live.add(f"{data.prefix}:{mac}")
-    return not any(
-        domain == DOMAIN and identifier in live
-        for domain, identifier in device_entry.identifiers
-    )
+            live.add(module_identifier(mac))
+    return not any(identifier in live for identifier in device_entry.identifiers)

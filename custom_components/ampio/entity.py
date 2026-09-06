@@ -2,7 +2,7 @@
 
 import asyncio
 from collections.abc import Iterator
-from typing import override
+from typing import Final, override
 
 from ampio_mqtt import (
     AmpioClient,
@@ -31,6 +31,17 @@ def eligible_objects(client: AmpioClient) -> Iterator[AmpioObject]:
     own detection and simulation objects, which no platform covers.
     """
     return (obj for obj in client.objects.values() if obj.visible and not obj.is_system)
+
+
+# The registry identifiers carry no server mac. Object ids live in the
+# Designer database, which moves to new hardware with the project; the
+# server mac does not. One M-SERV per Home Assistant keeps them unique.
+HUB_IDENTIFIER: Final = (DOMAIN, "hub")
+
+
+def module_identifier(mac: int) -> tuple[str, str]:
+    """The registry identifier of the module device that carries ``mac``."""
+    return (DOMAIN, f"module:{mac}")
 
 
 async def async_turn_on_honoring_pulse(
@@ -62,25 +73,26 @@ class AmpioEntity(Entity):
 
         ``key_suffix`` separates a second entity built from one object, and
         it lands in the unique id and the entity id alike, because the two
-        are the same string.
+        are the same string. No server scope: object ids are unique per
+        M-SERV, and one M-SERV is allowed.
         """
         self._data = data
         self._object_id = obj.id
         # Designer exposes one physical output as several objects, and every
         # such view repeats the ``leaf_id`` that ``leaf_key`` is built
         # from. ``object_key`` identifies the row instead, so each view
-        # keeps its own entity. The prefix scopes it per server.
-        self._key = f"{data.prefix}_{obj.object_key}{key_suffix}"
+        # keeps its own entity.
+        self._key = f"{obj.object_key}{key_suffix}"
         self._attr_unique_id = self._key
-        # An object is a channel of the module that carries it, not a
-        # deployed device of its own. The parent derives from the
-        # leaf-embedded mac, which every account tier receives, so the tree
-        # is identical on both tiers.
+        # An object is a channel of the module that carries it. The parent
+        # derives from the leaf-embedded mac, which every account tier
+        # receives, so the tree is identical on both tiers.
         mac = obj.module_mac
-        on_hub = obj.is_server_owned or mac is None
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, data.prefix if on_hub else f"{data.prefix}:{mac}")}
-        )
+        if obj.is_server_owned or mac is None:
+            identifier = HUB_IDENTIFIER
+        else:
+            identifier = module_identifier(mac)
+        self._attr_device_info = DeviceInfo(identifiers={identifier})
         # ``opis_menu`` is the Designer menu description, which is the name
         # the user gave the object in the Ampio app.
         if obj.opis_menu:

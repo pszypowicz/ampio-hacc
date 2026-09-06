@@ -1,5 +1,5 @@
 # serializer version: 1
-# name: test_all_entities[climate.ampio_47846_obj_91-entry]
+# name: test_all_entities[climate.ampio_obj_91-entry]
   EntityRegistryEntrySnapshot({
     'aliases': list([
       None,
@@ -25,7 +25,7 @@
     'disabled_by': None,
     'domain': 'climate',
     'entity_category': None,
-    'entity_id': 'climate.ampio_47846_obj_91',
+    'entity_id': 'climate.ampio_obj_91',
     'has_entity_name': True,
     'hidden_by': None,
     'icon': None,
@@ -41,14 +41,14 @@
     'original_name': 'Termostat Salon',
     'platform': 'ampio',
     'previous_unique_id': None,
-    'suggested_object_id': 'ampio_47846_obj_91',
+    'suggested_object_id': 'ampio_obj_91',
     'supported_features': <ClimateEntityFeature: 17>,
     'translation_key': None,
-    'unique_id': '47846_obj_91',
+    'unique_id': 'obj_91',
     'unit_of_measurement': None,
   })
 # ---
-# name: test_all_entities[climate.ampio_47846_obj_91-state]
+# name: test_all_entities[climate.ampio_obj_91-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
       <ClimateEntityStateAttribute.CURRENT_TEMPERATURE: 'current_temperature'>: 21.8,
@@ -70,7 +70,7 @@
       <ClimateEntityStateAttribute.TARGET_TEMPERATURE: 'temperature'>: 22.5,
     }),
     'context': <ANY>,
-    'entity_id': 'climate.ampio_47846_obj_91',
+    'entity_id': 'climate.ampio_obj_91',
     'last_changed': <ANY>,
     'last_reported': <ANY>,
     'last_updated': <ANY>,

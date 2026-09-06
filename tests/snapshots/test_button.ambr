@@ -1,5 +1,5 @@
 # serializer version: 1
-# name: test_all_entities[button.ampio_47846_obj_149-entry]
+# name: test_all_entities[button.ampio_obj_149-entry]
   EntityRegistryEntrySnapshot({
     'aliases': list([
       None,
@@ -13,7 +13,7 @@
     'disabled_by': None,
     'domain': 'button',
     'entity_category': None,
-    'entity_id': 'button.ampio_47846_obj_149',
+    'entity_id': 'button.ampio_obj_149',
     'has_entity_name': True,
     'hidden_by': None,
     'icon': None,
@@ -29,27 +29,27 @@
     'original_name': 'Bell',
     'platform': 'ampio',
     'previous_unique_id': None,
-    'suggested_object_id': 'ampio_47846_obj_149',
+    'suggested_object_id': 'ampio_obj_149',
     'supported_features': 0,
     'translation_key': 'bell',
-    'unique_id': '47846_obj_149',
+    'unique_id': 'obj_149',
     'unit_of_measurement': None,
   })
 # ---
-# name: test_all_entities[button.ampio_47846_obj_149-state]
+# name: test_all_entities[button.ampio_obj_149-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
       <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'm-sens salon Bell',
     }),
     'context': <ANY>,
-    'entity_id': 'button.ampio_47846_obj_149',
+    'entity_id': 'button.ampio_obj_149',
     'last_changed': <ANY>,
     'last_reported': <ANY>,
     'last_updated': <ANY>,
     'state': 'unknown',
   })
 # ---
-# name: test_all_entities[button.ampio_47846_obj_150-entry]
+# name: test_all_entities[button.ampio_obj_150-entry]
   EntityRegistryEntrySnapshot({
     'aliases': list([
       None,
@@ -63,7 +63,7 @@
     'disabled_by': None,
     'domain': 'button',
     'entity_category': None,
-    'entity_id': 'button.ampio_47846_obj_150',
+    'entity_id': 'button.ampio_obj_150',
     'has_entity_name': True,
     'hidden_by': None,
     'icon': None,
@@ -79,27 +79,27 @@
     'original_name': 'Dzwonek',
     'platform': 'ampio',
     'previous_unique_id': None,
-    'suggested_object_id': 'ampio_47846_obj_150',
+    'suggested_object_id': 'ampio_obj_150',
     'supported_features': 0,
     'translation_key': 'bell',
-    'unique_id': '47846_obj_150',
+    'unique_id': 'obj_150',
     'unit_of_measurement': None,
   })
 # ---
-# name: test_all_entities[button.ampio_47846_obj_150-state]
+# name: test_all_entities[button.ampio_obj_150-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
       <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'm-sens salon Dzwonek',
     }),
     'context': <ANY>,
-    'entity_id': 'button.ampio_47846_obj_150',
+    'entity_id': 'button.ampio_obj_150',
     'last_changed': <ANY>,
     'last_reported': <ANY>,
     'last_updated': <ANY>,
     'state': 'unknown',
   })
 # ---
-# name: test_all_entities[button.ampio_47846_obj_151-entry]
+# name: test_all_entities[button.ampio_obj_151-entry]
   EntityRegistryEntrySnapshot({
     'aliases': list([
       None,
@@ -113,7 +113,7 @@
     'disabled_by': None,
     'domain': 'button',
     'entity_category': None,
-    'entity_id': 'button.ampio_47846_obj_151',
+    'entity_id': 'button.ampio_obj_151',
     'has_entity_name': True,
     'hidden_by': None,
     'icon': None,
@@ -129,20 +129,20 @@
     'original_name': 'Dzwonek',
     'platform': 'ampio',
     'previous_unique_id': None,
-    'suggested_object_id': 'ampio_47846_obj_151',
+    'suggested_object_id': 'ampio_obj_151',
     'supported_features': 0,
     'translation_key': 'bell',
-    'unique_id': '47846_obj_151',
+    'unique_id': 'obj_151',
     'unit_of_measurement': None,
   })
 # ---
-# name: test_all_entities[button.ampio_47846_obj_151-state]
+# name: test_all_entities[button.ampio_obj_151-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
       <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: 'm-sens salon Dzwonek',
     }),
     'context': <ANY>,
-    'entity_id': 'button.ampio_47846_obj_151',
+    'entity_id': 'button.ampio_obj_151',
     'last_changed': <ANY>,
     'last_reported': <ANY>,
     'last_updated': <ANY>,

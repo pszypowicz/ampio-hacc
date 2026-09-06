@@ -1,5 +1,5 @@
 # serializer version: 1
-# name: test_all_entities[sensor.ampio_47846_obj_150_pulse-entry]
+# name: test_all_entities[sensor.ampio_obj_150_pulse-entry]
   EntityRegistryEntrySnapshot({
     'aliases': list([
       None,
@@ -13,7 +13,7 @@
     'disabled_by': None,
     'domain': 'sensor',
     'entity_category': <EntityCategory.DIAGNOSTIC: 'diagnostic'>,
-    'entity_id': 'sensor.ampio_47846_obj_150_pulse',
+    'entity_id': 'sensor.ampio_obj_150_pulse',
     'has_entity_name': True,
     'hidden_by': None,
     'icon': None,
@@ -35,14 +35,14 @@
     'original_name': 'Pulse time',
     'platform': 'ampio',
     'previous_unique_id': None,
-    'suggested_object_id': 'ampio_47846_obj_150_pulse',
+    'suggested_object_id': 'ampio_obj_150_pulse',
     'supported_features': 0,
     'translation_key': 'pulse_time',
-    'unique_id': '47846_obj_150_pulse',
+    'unique_id': 'obj_150_pulse',
     'unit_of_measurement': <UnitOfTime.SECONDS: 's'>,
   })
 # ---
-# name: test_all_entities[sensor.ampio_47846_obj_150_pulse-state]
+# name: test_all_entities[sensor.ampio_obj_150_pulse-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
       <EntityStateAttribute.DEVICE_CLASS: 'device_class'>: 'duration',
@@ -50,14 +50,14 @@
       <EntityStateAttribute.UNIT_OF_MEASUREMENT: 'unit_of_measurement'>: <UnitOfTime.SECONDS: 's'>,
     }),
     'context': <ANY>,
-    'entity_id': 'sensor.ampio_47846_obj_150_pulse',
+    'entity_id': 'sensor.ampio_obj_150_pulse',
     'last_changed': <ANY>,
     'last_reported': <ANY>,
     'last_updated': <ANY>,
     'state': '3.0',
   })
 # ---
-# name: test_all_entities[sensor.ampio_47846_obj_151_pulse-entry]
+# name: test_all_entities[sensor.ampio_obj_151_pulse-entry]
   EntityRegistryEntrySnapshot({
     'aliases': list([
       None,
@@ -71,7 +71,7 @@
     'disabled_by': None,
     'domain': 'sensor',
     'entity_category': <EntityCategory.DIAGNOSTIC: 'diagnostic'>,
-    'entity_id': 'sensor.ampio_47846_obj_151_pulse',
+    'entity_id': 'sensor.ampio_obj_151_pulse',
     'has_entity_name': True,
     'hidden_by': None,
     'icon': None,
@@ -93,14 +93,14 @@
     'original_name': 'Pulse time',
     'platform': 'ampio',
     'previous_unique_id': None,
-    'suggested_object_id': 'ampio_47846_obj_151_pulse',
+    'suggested_object_id': 'ampio_obj_151_pulse',
     'supported_features': 0,
     'translation_key': 'pulse_time',
-    'unique_id': '47846_obj_151_pulse',
+    'unique_id': 'obj_151_pulse',
     'unit_of_measurement': <UnitOfTime.SECONDS: 's'>,
   })
 # ---
-# name: test_all_entities[sensor.ampio_47846_obj_151_pulse-state]
+# name: test_all_entities[sensor.ampio_obj_151_pulse-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
       <EntityStateAttribute.DEVICE_CLASS: 'device_class'>: 'duration',
@@ -108,14 +108,14 @@
       <EntityStateAttribute.UNIT_OF_MEASUREMENT: 'unit_of_measurement'>: <UnitOfTime.SECONDS: 's'>,
     }),
     'context': <ANY>,
-    'entity_id': 'sensor.ampio_47846_obj_151_pulse',
+    'entity_id': 'sensor.ampio_obj_151_pulse',
     'last_changed': <ANY>,
     'last_reported': <ANY>,
     'last_updated': <ANY>,
     'state': '3.0',
   })
 # ---
-# name: test_all_entities[sensor.ampio_47846_obj_36-entry]
+# name: test_all_entities[sensor.ampio_obj_36-entry]
   EntityRegistryEntrySnapshot({
     'aliases': list([
       None,
@@ -131,7 +131,7 @@
     'disabled_by': None,
     'domain': 'sensor',
     'entity_category': None,
-    'entity_id': 'sensor.ampio_47846_obj_36',
+    'entity_id': 'sensor.ampio_obj_36',
     'has_entity_name': True,
     'hidden_by': None,
     'icon': None,
@@ -150,14 +150,14 @@
     'original_name': 'Temperatura',
     'platform': 'ampio',
     'previous_unique_id': None,
-    'suggested_object_id': 'ampio_47846_obj_36',
+    'suggested_object_id': 'ampio_obj_36',
     'supported_features': 0,
     'translation_key': None,
-    'unique_id': '47846_obj_36',
+    'unique_id': 'obj_36',
     'unit_of_measurement': <UnitOfTemperature.CELSIUS: '°C'>,
   })
 # ---
-# name: test_all_entities[sensor.ampio_47846_obj_36-state]
+# name: test_all_entities[sensor.ampio_obj_36-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
       <EntityStateAttribute.DEVICE_CLASS: 'device_class'>: 'temperature',
@@ -166,14 +166,14 @@
       <EntityStateAttribute.UNIT_OF_MEASUREMENT: 'unit_of_measurement'>: <UnitOfTemperature.CELSIUS: '°C'>,
     }),
     'context': <ANY>,
-    'entity_id': 'sensor.ampio_47846_obj_36',
+    'entity_id': 'sensor.ampio_obj_36',
     'last_changed': <ANY>,
     'last_reported': <ANY>,
     'last_updated': <ANY>,
     'state': '24.4',
   })
 # ---
-# name: test_all_entities[sensor.ampio_47846_obj_37-entry]
+# name: test_all_entities[sensor.ampio_obj_37-entry]
   EntityRegistryEntrySnapshot({
     'aliases': list([
       None,
@@ -189,7 +189,7 @@
     'disabled_by': None,
     'domain': 'sensor',
     'entity_category': None,
-    'entity_id': 'sensor.ampio_47846_obj_37',
+    'entity_id': 'sensor.ampio_obj_37',
     'has_entity_name': True,
     'hidden_by': None,
     'icon': None,
@@ -208,14 +208,14 @@
     'original_name': 'Wilgotność',
     'platform': 'ampio',
     'previous_unique_id': None,
-    'suggested_object_id': 'ampio_47846_obj_37',
+    'suggested_object_id': 'ampio_obj_37',
     'supported_features': 0,
     'translation_key': None,
-    'unique_id': '47846_obj_37',
+    'unique_id': 'obj_37',
     'unit_of_measurement': '%',
   })
 # ---
-# name: test_all_entities[sensor.ampio_47846_obj_37-state]
+# name: test_all_entities[sensor.ampio_obj_37-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
       <EntityStateAttribute.DEVICE_CLASS: 'device_class'>: 'humidity',
@@ -224,14 +224,14 @@
       <EntityStateAttribute.UNIT_OF_MEASUREMENT: 'unit_of_measurement'>: '%',
     }),
     'context': <ANY>,
-    'entity_id': 'sensor.ampio_47846_obj_37',
+    'entity_id': 'sensor.ampio_obj_37',
     'last_changed': <ANY>,
     'last_reported': <ANY>,
     'last_updated': <ANY>,
     'state': '42.0',
   })
 # ---
-# name: test_all_entities[sensor.ampio_47846_obj_43-entry]
+# name: test_all_entities[sensor.ampio_obj_43-entry]
   EntityRegistryEntrySnapshot({
     'aliases': list([
       None,
@@ -247,7 +247,7 @@
     'disabled_by': None,
     'domain': 'sensor',
     'entity_category': None,
-    'entity_id': 'sensor.ampio_47846_obj_43',
+    'entity_id': 'sensor.ampio_obj_43',
     'has_entity_name': True,
     'hidden_by': None,
     'icon': None,
@@ -266,14 +266,14 @@
     'original_name': 'CO2',
     'platform': 'ampio',
     'previous_unique_id': None,
-    'suggested_object_id': 'ampio_47846_obj_43',
+    'suggested_object_id': 'ampio_obj_43',
     'supported_features': 0,
     'translation_key': 'co2',
-    'unique_id': '47846_obj_43',
+    'unique_id': 'obj_43',
     'unit_of_measurement': <UnitOfRatio.PARTS_PER_MILLION: 'ppm'>,
   })
 # ---
-# name: test_all_entities[sensor.ampio_47846_obj_43-state]
+# name: test_all_entities[sensor.ampio_obj_43-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
       <EntityStateAttribute.DEVICE_CLASS: 'device_class'>: 'carbon_dioxide',
@@ -282,14 +282,14 @@
       <EntityStateAttribute.UNIT_OF_MEASUREMENT: 'unit_of_measurement'>: <UnitOfRatio.PARTS_PER_MILLION: 'ppm'>,
     }),
     'context': <ANY>,
-    'entity_id': 'sensor.ampio_47846_obj_43',
+    'entity_id': 'sensor.ampio_obj_43',
     'last_changed': <ANY>,
     'last_reported': <ANY>,
     'last_updated': <ANY>,
     'state': '900.5',
   })
 # ---
-# name: test_all_entities[sensor.ampio_47846_obj_44-entry]
+# name: test_all_entities[sensor.ampio_obj_44-entry]
   EntityRegistryEntrySnapshot({
     'aliases': list([
       None,
@@ -305,7 +305,7 @@
     'disabled_by': None,
     'domain': 'sensor',
     'entity_category': None,
-    'entity_id': 'sensor.ampio_47846_obj_44',
+    'entity_id': 'sensor.ampio_obj_44',
     'has_entity_name': True,
     'hidden_by': None,
     'icon': None,
@@ -324,14 +324,14 @@
     'original_name': 'Absolute pressure',
     'platform': 'ampio',
     'previous_unique_id': None,
-    'suggested_object_id': 'ampio_47846_obj_44',
+    'suggested_object_id': 'ampio_obj_44',
     'supported_features': 0,
     'translation_key': 'pressure_abs',
-    'unique_id': '47846_obj_44',
+    'unique_id': 'obj_44',
     'unit_of_measurement': <UnitOfPressure.HPA: 'hPa'>,
   })
 # ---
-# name: test_all_entities[sensor.ampio_47846_obj_44-state]
+# name: test_all_entities[sensor.ampio_obj_44-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
       <EntityStateAttribute.DEVICE_CLASS: 'device_class'>: 'atmospheric_pressure',
@@ -340,14 +340,14 @@
       <EntityStateAttribute.UNIT_OF_MEASUREMENT: 'unit_of_measurement'>: <UnitOfPressure.HPA: 'hPa'>,
     }),
     'context': <ANY>,
-    'entity_id': 'sensor.ampio_47846_obj_44',
+    'entity_id': 'sensor.ampio_obj_44',
     'last_changed': <ANY>,
     'last_reported': <ANY>,
     'last_updated': <ANY>,
     'state': '1013.2',
   })
 # ---
-# name: test_all_entities[sensor.ampio_47846_obj_45-entry]
+# name: test_all_entities[sensor.ampio_obj_45-entry]
   EntityRegistryEntrySnapshot({
     'aliases': list([
       None,
@@ -363,7 +363,7 @@
     'disabled_by': None,
     'domain': 'sensor',
     'entity_category': None,
-    'entity_id': 'sensor.ampio_47846_obj_45',
+    'entity_id': 'sensor.ampio_obj_45',
     'has_entity_name': True,
     'hidden_by': None,
     'icon': None,
@@ -382,14 +382,14 @@
     'original_name': 'Relative pressure',
     'platform': 'ampio',
     'previous_unique_id': None,
-    'suggested_object_id': 'ampio_47846_obj_45',
+    'suggested_object_id': 'ampio_obj_45',
     'supported_features': 0,
     'translation_key': 'pressure_rel',
-    'unique_id': '47846_obj_45',
+    'unique_id': 'obj_45',
     'unit_of_measurement': <UnitOfPressure.HPA: 'hPa'>,
   })
 # ---
-# name: test_all_entities[sensor.ampio_47846_obj_45-state]
+# name: test_all_entities[sensor.ampio_obj_45-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
       <EntityStateAttribute.DEVICE_CLASS: 'device_class'>: 'pressure',
@@ -398,14 +398,14 @@
       <EntityStateAttribute.UNIT_OF_MEASUREMENT: 'unit_of_measurement'>: <UnitOfPressure.HPA: 'hPa'>,
     }),
     'context': <ANY>,
-    'entity_id': 'sensor.ampio_47846_obj_45',
+    'entity_id': 'sensor.ampio_obj_45',
     'last_changed': <ANY>,
     'last_reported': <ANY>,
     'last_updated': <ANY>,
     'state': '1019.7',
   })
 # ---
-# name: test_all_entities[sensor.ampio_47846_obj_46-entry]
+# name: test_all_entities[sensor.ampio_obj_46-entry]
   EntityRegistryEntrySnapshot({
     'aliases': list([
       None,
@@ -421,7 +421,7 @@
     'disabled_by': None,
     'domain': 'sensor',
     'entity_category': None,
-    'entity_id': 'sensor.ampio_47846_obj_46',
+    'entity_id': 'sensor.ampio_obj_46',
     'has_entity_name': True,
     'hidden_by': None,
     'icon': None,
@@ -440,14 +440,14 @@
     'original_name': 'Loudness',
     'platform': 'ampio',
     'previous_unique_id': None,
-    'suggested_object_id': 'ampio_47846_obj_46',
+    'suggested_object_id': 'ampio_obj_46',
     'supported_features': 0,
     'translation_key': 'loudness',
-    'unique_id': '47846_obj_46',
+    'unique_id': 'obj_46',
     'unit_of_measurement': <UnitOfSoundPressure.DECIBEL: 'dB'>,
   })
 # ---
-# name: test_all_entities[sensor.ampio_47846_obj_46-state]
+# name: test_all_entities[sensor.ampio_obj_46-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
       <EntityStateAttribute.DEVICE_CLASS: 'device_class'>: 'sound_pressure',
@@ -456,14 +456,14 @@
       <EntityStateAttribute.UNIT_OF_MEASUREMENT: 'unit_of_measurement'>: <UnitOfSoundPressure.DECIBEL: 'dB'>,
     }),
     'context': <ANY>,
-    'entity_id': 'sensor.ampio_47846_obj_46',
+    'entity_id': 'sensor.ampio_obj_46',
     'last_changed': <ANY>,
     'last_reported': <ANY>,
     'last_updated': <ANY>,
     'state': '38.5',
   })
 # ---
-# name: test_all_entities[sensor.ampio_47846_obj_47-entry]
+# name: test_all_entities[sensor.ampio_obj_47-entry]
   EntityRegistryEntrySnapshot({
     'aliases': list([
       None,
@@ -479,7 +479,7 @@
     'disabled_by': None,
     'domain': 'sensor',
     'entity_category': None,
-    'entity_id': 'sensor.ampio_47846_obj_47',
+    'entity_id': 'sensor.ampio_obj_47',
     'has_entity_name': True,
     'hidden_by': None,
     'icon': None,
@@ -498,14 +498,14 @@
     'original_name': 'Illuminance',
     'platform': 'ampio',
     'previous_unique_id': None,
-    'suggested_object_id': 'ampio_47846_obj_47',
+    'suggested_object_id': 'ampio_obj_47',
     'supported_features': 0,
     'translation_key': None,
-    'unique_id': '47846_obj_47',
+    'unique_id': 'obj_47',
     'unit_of_measurement': 'lx',
   })
 # ---
-# name: test_all_entities[sensor.ampio_47846_obj_47-state]
+# name: test_all_entities[sensor.ampio_obj_47-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
       <EntityStateAttribute.DEVICE_CLASS: 'device_class'>: 'illuminance',
@@ -514,14 +514,14 @@
       <EntityStateAttribute.UNIT_OF_MEASUREMENT: 'unit_of_measurement'>: 'lx',
     }),
     'context': <ANY>,
-    'entity_id': 'sensor.ampio_47846_obj_47',
+    'entity_id': 'sensor.ampio_obj_47',
     'last_changed': <ANY>,
     'last_reported': <ANY>,
     'last_updated': <ANY>,
     'state': '742.0',
   })
 # ---
-# name: test_all_entities[sensor.ampio_47846_obj_48-entry]
+# name: test_all_entities[sensor.ampio_obj_48-entry]
   EntityRegistryEntrySnapshot({
     'aliases': list([
       None,
@@ -537,7 +537,7 @@
     'disabled_by': None,
     'domain': 'sensor',
     'entity_category': None,
-    'entity_id': 'sensor.ampio_47846_obj_48',
+    'entity_id': 'sensor.ampio_obj_48',
     'has_entity_name': True,
     'hidden_by': None,
     'icon': None,
@@ -556,14 +556,14 @@
     'original_name': 'Air quality index',
     'platform': 'ampio',
     'previous_unique_id': None,
-    'suggested_object_id': 'ampio_47846_obj_48',
+    'suggested_object_id': 'ampio_obj_48',
     'supported_features': 0,
     'translation_key': None,
-    'unique_id': '47846_obj_48',
+    'unique_id': 'obj_48',
     'unit_of_measurement': None,
   })
 # ---
-# name: test_all_entities[sensor.ampio_47846_obj_48-state]
+# name: test_all_entities[sensor.ampio_obj_48-state]
   StateSnapshot({
     'attributes': ReadOnlyDict({
       <EntityStateAttribute.DEVICE_CLASS: 'device_class'>: 'aqi',
@@ -571,7 +571,7 @@
       <SensorEntityCapabilityAttribute.STATE_CLASS: 'state_class'>: <SensorStateClass.MEASUREMENT: 'measurement'>,
     }),
     'context': <ANY>,
-    'entity_id': 'sensor.ampio_47846_obj_48',
+    'entity_id': 'sensor.ampio_obj_48',
     'last_changed': <ANY>,
     'last_reported': <ANY>,
     'last_updated': <ANY>,
@@ -593,7 +593,7 @@
     'identifiers': set({
       tuple(
         'ampio',
-        '47846',
+        'hub',
       ),
     }),
     'labels': set({
@@ -623,7 +623,7 @@
     'identifiers': set({
       tuple(
         'ampio',
-        '47846:52111',
+        'module:52111',
       ),
     }),
     'labels': set({

@@ -12,7 +12,6 @@ from pytest_homeassistant_custom_component.common import (
 )
 from syrupy.assertion import SnapshotAssertion
 
-from custom_components.ampio.const import DOMAIN
 from homeassistant.components.switch import DOMAIN as SWITCH_DOMAIN
 from homeassistant.const import (
     ATTR_ENTITY_ID,
@@ -27,7 +26,7 @@ from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 
 from . import setup_integration
-from .conftest import MSERV_MAC, emit, make_object, pinned_id
+from .conftest import HUB_IDENTIFIER, emit, make_object, pinned_id
 
 PLAIN_ENTITY_ID = pinned_id("switch", 74)
 OUTLET_ENTITY_ID = pinned_id("switch", 75)
@@ -217,7 +216,7 @@ async def test_leafless_object_keeps_its_entity_on_the_hub(
     entry = entity_registry.async_get(pinned_id("switch", 98))
     assert entry is not None
     hub = device_registry.async_get_device_by_identifier(
-        (DOMAIN, MSERV_MAC), mock_config_entry.entry_id
+        HUB_IDENTIFIER, mock_config_entry.entry_id
     )
     assert hub is not None
     assert entry.device_id == hub.id

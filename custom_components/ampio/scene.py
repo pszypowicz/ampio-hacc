@@ -10,8 +10,8 @@ from homeassistant.exceptions import PlatformNotReady
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
-from .const import DOMAIN
 from .data import AmpioConfigEntry, AmpioData
+from .entity import HUB_IDENTIFIER
 
 PARALLEL_UPDATES = 0
 
@@ -46,14 +46,13 @@ class AmpioSceneEntity(Scene):
     def __init__(self, data: AmpioData, scene: AmpioScene) -> None:
         """Initialize from the fetched catalogue entry.
 
-        The scene id is the app's own identifier; the server prefix scopes
-        it per install.
+        The scene id is the app's own identifier.
         """
         self._data = data
         self._scene_id = scene.id
         self._attr_name = scene.scene_name
-        self._attr_unique_id = f"{data.prefix}_scene_{scene.id}"
-        self._attr_device_info = DeviceInfo(identifiers={(DOMAIN, data.prefix)})
+        self._attr_unique_id = f"scene_{scene.id}"
+        self._attr_device_info = DeviceInfo(identifiers={HUB_IDENTIFIER})
 
     async def async_activate(self, **kwargs: Any) -> None:
         """Apply the scene's actions."""

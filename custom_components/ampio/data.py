@@ -12,9 +12,6 @@ class AmpioData:
     """Runtime data for one Ampio server."""
 
     client: AmpioClient
-    # The server's identity key; scopes unique_ids and device identifiers so
-    # two servers on one Home Assistant instance never collide.
-    prefix: str
 
 
 type AmpioConfigEntry = ConfigEntry[AmpioData]

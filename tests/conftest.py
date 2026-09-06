@@ -47,11 +47,19 @@ def snapshot(snapshot: SnapshotAssertion) -> SnapshotAssertion:
 
 
 MSERV_MAC = "47846"
-MSENS_IDENTIFIER = (DOMAIN, f"{MSERV_MAC}:52111")
+# Identifiers carry no server mac: the hub is one constant, a module is its
+# leaf-embedded mac, an object is its Designer id.
+HUB_IDENTIFIER = (DOMAIN, "hub")
+MSENS_IDENTIFIER = (DOMAIN, "module:52111")
 # The module device is named from the admin-only module catalogue, and it
 # falls back to the leaf-embedded mac that both account tiers receive.
 MSENS_DEVICE_NAME = "m-sens salon"
 MSENS_MAC_NAME = "Ampio module 0xCB8F"
+
+
+def unique_id(oid: int, suffix: str = "") -> str:
+    """The unique id of an object's entity: the object key alone."""
+    return f"obj_{oid}{suffix}"
 
 
 def pinned_id(domain: str, oid: int, suffix: str = "") -> str:
@@ -60,7 +68,7 @@ def pinned_id(domain: str, oid: int, suffix: str = "") -> str:
     The integration carries this id into the add, so no device name and no
     area name compose it. It is the unique id with the domain in front.
     """
-    return f"{domain}.ampio_{MSERV_MAC}_obj_{oid}{suffix}"
+    return f"{domain}.ampio_{unique_id(oid, suffix)}"
 
 
 # A sweep that read every module and joined nothing.

@@ -32,12 +32,13 @@ from homeassistant.helpers import device_registry as dr, entity_registry as er
 
 from . import setup_integration
 from .conftest import (
+    HUB_IDENTIFIER,
     MSENS_IDENTIFIER,
     MSENS_MAC_NAME,
-    MSERV_MAC,
     emit,
     make_object,
     pinned_id,
+    unique_id,
 )
 
 TEMPERATURE_ENTITY_ID = pinned_id("sensor", 36)
@@ -271,11 +272,11 @@ async def test_hub_anchored_objects(
     await setup_integration(hass, mock_config_entry)
 
     hub = device_registry.async_get_device_by_identifier(
-        (DOMAIN, MSERV_MAC), mock_config_entry.entry_id
+        HUB_IDENTIFIER, mock_config_entry.entry_id
     )
     assert hub is not None
     entity_id = entity_registry.async_get_entity_id(
-        Platform.SENSOR, DOMAIN, f"{MSERV_MAC}_obj_500"
+        Platform.SENSOR, DOMAIN, unique_id(500)
     )
     assert entity_id is not None
     entity_entry = entity_registry.async_get(entity_id)
@@ -303,13 +304,13 @@ async def test_module_without_catalogue_row_gets_bare_device(
     await setup_integration(hass, mock_config_entry)
 
     device = device_registry.async_get_device_by_identifier(
-        (DOMAIN, f"{MSERV_MAC}:{0xDEAD}"), mock_config_entry.entry_id
+        (DOMAIN, f"module:{0xDEAD}"), mock_config_entry.entry_id
     )
     assert device is not None
     assert device.name == "Ampio module 0xDEAD"
     assert device.model is None
     entity_id = entity_registry.async_get_entity_id(
-        Platform.SENSOR, DOMAIN, f"{MSERV_MAC}_obj_500"
+        Platform.SENSOR, DOMAIN, unique_id(500)
     )
     assert entity_id is not None
     entity_entry = entity_registry.async_get(entity_id)
@@ -372,5 +373,9 @@ async def test_pulse_time_diagnostic(
     assert float(state.state) == 3.0
 
     for object_id in (149, 72, 82):
-        unique_id = f"{MSERV_MAC}_obj_{object_id}_pulse"
-        assert entity_registry.async_get_entity_id("sensor", DOMAIN, unique_id) is None
+        assert (
+            entity_registry.async_get_entity_id(
+                "sensor", DOMAIN, unique_id(object_id, "_pulse")
+            )
+            is None
+        )

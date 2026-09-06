@@ -32,6 +32,7 @@ from homeassistant.helpers import (
 from . import setup_integration
 from .conftest import (
     EMPTY_SWEEP,
+    HUB_IDENTIFIER,
     MSENS_DEVICE_NAME,
     MSENS_IDENTIFIER,
     MSENS_MAC_NAME,
@@ -40,6 +41,7 @@ from .conftest import (
     emit,
     make_object,
     pinned_id,
+    unique_id,
 )
 
 
@@ -106,18 +108,26 @@ async def test_setup_failure_stops_client(
 
 
 @pytest.mark.usefixtures("mock_client")
-async def test_setup_fails_on_server_identity_mismatch(hass: HomeAssistant) -> None:
-    """A host now answering as a different M-SERV lands the entry in SETUP_ERROR.
+async def test_server_swap_rekeys_the_entry(
+    hass: HomeAssistant, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A different server at the stored host is taken over, with a warning.
 
-    Proceeding would re-key every unique_id and device identifier under the
-    new server's prefix, orphaning the existing registry entries.
+    Every identity the integration writes is server-free, so a replaced
+    M-SERV changes no id. The entry takes the new server key as its own.
     """
     entry = MockConfigEntry(domain=DOMAIN, data=USER_INPUT, unique_id="99999")
 
     await setup_integration(hass, entry)
 
-    assert entry.state is ConfigEntryState.SETUP_ERROR
-    assert entry.error_reason_translation_key == "unexpected_device"
+    assert entry.state is ConfigEntryState.LOADED
+    assert entry.unique_id == MSERV_MAC
+    swap_warnings = [
+        record
+        for record in caplog.records
+        if record.levelname == "WARNING" and "99999" in record.getMessage()
+    ]
+    assert len(swap_warnings) == 1
 
 
 @pytest.mark.usefixtures("mock_client")
@@ -130,7 +140,7 @@ async def test_hub_device(
     await setup_integration(hass, mock_config_entry)
 
     hub = device_registry.async_get_device_by_identifier(
-        (DOMAIN, MSERV_MAC), mock_config_entry.entry_id
+        HUB_IDENTIFIER, mock_config_entry.entry_id
     )
     assert hub is not None
 
@@ -166,7 +176,7 @@ async def test_restricted_account_groups_by_module_mac(
     mock_client.resolve_records.assert_not_called()
 
     hub = device_registry.async_get_device_by_identifier(
-        (DOMAIN, MSERV_MAC), mock_config_entry.entry_id
+        HUB_IDENTIFIER, mock_config_entry.entry_id
     )
     assert hub is not None
     assert hub.name == "M-SERV"
@@ -186,7 +196,7 @@ async def test_restricted_account_groups_by_module_mac(
     # The tree is two deep. Scenes and every server-owned object sit on the
     # hub; every other entity sits on its module device. No entity rides a
     # device of its own, whatever its platform.
-    hub_unique_ids = {f"{MSERV_MAC}_obj_121"}
+    hub_unique_ids = {unique_id(121)}
     for entity in entities:
         expected = (
             hub.id
@@ -300,7 +310,7 @@ async def test_user_names_never_reach_an_entity_id(
     await hass.async_block_till_done()
 
     assert entity_registry.async_get_entity_id(
-        "sensor", DOMAIN, f"{MSERV_MAC}_obj_500"
+        "sensor", DOMAIN, unique_id(500)
     ) == pinned_id("sensor", 500)
 
 
@@ -368,7 +378,7 @@ async def test_module_devices_preregistered(
     await setup_integration(hass, mock_config_entry)
 
     hub = device_registry.async_get_device_by_identifier(
-        (DOMAIN, MSERV_MAC), mock_config_entry.entry_id
+        HUB_IDENTIFIER, mock_config_entry.entry_id
     )
     module_device = device_registry.async_get_device_by_identifier(
         MSENS_IDENTIFIER, mock_config_entry.entry_id
@@ -399,14 +409,12 @@ async def test_duplicate_leaf_builds_both_entities(
 
     for object_id in (150, 151):
         assert (
-            entity_registry.async_get_entity_id(
-                "button", DOMAIN, f"{MSERV_MAC}_obj_{object_id}"
-            )
+            entity_registry.async_get_entity_id("button", DOMAIN, unique_id(object_id))
             is not None
         )
         assert (
             entity_registry.async_get_entity_id(
-                "sensor", DOMAIN, f"{MSERV_MAC}_obj_{object_id}_pulse"
+                "sensor", DOMAIN, unique_id(object_id, "_pulse")
             )
             is not None
         )
@@ -459,13 +467,9 @@ async def test_sweep_never_moves_an_entity(
 
     mock_client.resolve_records.assert_awaited_once_with()
     assert (
-        entity_registry.async_get_entity_id("switch", DOMAIN, f"{MSERV_MAC}_obj_74")
-        is not None
+        entity_registry.async_get_entity_id("switch", DOMAIN, unique_id(74)) is not None
     )
-    assert (
-        entity_registry.async_get_entity_id("light", DOMAIN, f"{MSERV_MAC}_obj_74")
-        is None
-    )
+    assert entity_registry.async_get_entity_id("light", DOMAIN, unique_id(74)) is None
 
 
 async def test_resolve_failure_degrades(
@@ -536,7 +540,7 @@ async def test_no_object_gets_a_device(
     await setup_integration(hass, mock_config_entry)
 
     hub = device_registry.async_get_device_by_identifier(
-        (DOMAIN, MSERV_MAC), mock_config_entry.entry_id
+        HUB_IDENTIFIER, mock_config_entry.entry_id
     )
     module_device = device_registry.async_get_device_by_identifier(
         MSENS_IDENTIFIER, mock_config_entry.entry_id
@@ -558,7 +562,7 @@ async def test_no_object_gets_a_device(
         ("switch", 74),
     ):
         entity_id = entity_registry.async_get_entity_id(
-            domain, DOMAIN, f"{MSERV_MAC}_obj_{object_id}"
+            domain, DOMAIN, unique_id(object_id)
         )
         assert entity_id is not None
         entity_entry = entity_registry.async_get(entity_id)
@@ -566,7 +570,7 @@ async def test_no_object_gets_a_device(
         assert entity_entry.device_id == module_device.id
 
     flag_entity_id = entity_registry.async_get_entity_id(
-        "switch", DOMAIN, f"{MSERV_MAC}_obj_121"
+        "switch", DOMAIN, unique_id(121)
     )
     assert flag_entity_id is not None
     flag_entity = entity_registry.async_get(flag_entity_id)
@@ -584,7 +588,7 @@ async def test_remove_config_entry_device(
     await setup_integration(hass, mock_config_entry)
 
     hub = device_registry.async_get_device_by_identifier(
-        (DOMAIN, MSERV_MAC), mock_config_entry.entry_id
+        HUB_IDENTIFIER, mock_config_entry.entry_id
     )
     module_device = device_registry.async_get_device_by_identifier(
         MSENS_IDENTIFIER, mock_config_entry.entry_id
