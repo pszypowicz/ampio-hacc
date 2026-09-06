@@ -14,7 +14,9 @@ This is good behavior. Your automations keep working across an update, a rename,
 
 No. Your install keeps the ids it already has. A fresh install gets the new form. Both forms work, and nothing forces you to change.
 
-Every `0.0.x` release is beta, and none of them carries a migration. A release can therefore change the id form, and the same rule applies each time. Version 0.0.12 is one example. A fresh install of 0.0.12 or later uses ids of the form `light.ampio_47846_obj_7`. An install created before 0.0.12 keeps ids of the form `light.ampio_module_0xc9ae_osw_obwod_1`.
+Every `0.0.x` release is beta, and none of them carries a migration. A release can therefore change the id form, and the same rule applies each time. Version 0.0.14 is the current example. A fresh install of 0.0.14 or later uses ids of the form `light.ampio_obj_7`. An install created on 0.0.12 or 0.0.13 keeps ids of the form `light.ampio_47846_obj_7`, and an install created before 0.0.12 keeps ids of the form `light.ampio_module_0xc9ae_osw_obwod_1`.
+
+Version 0.0.14 also moved every entity onto a device of its own. An install updated in place keeps its old entities as unavailable records next to the new ones. The release note asks you to delete the integration entry before the update for that reason. If you updated in place, remove the entry and add it again, or use the reset procedure below.
 
 If you want the new form on an existing install, use the reset procedure below. It is a support procedure. No update requires it.
 
