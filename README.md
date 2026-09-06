@@ -31,7 +31,7 @@ Manual steps:
 2. Add `https://github.com/pszypowicz/ampio-homeassistant` as a custom repository (type: Integration).
 3. Install "Ampio" and restart Home Assistant.
 
-Requires Home Assistant 2026.8.0 or newer. `ampio-mqtt` is installed automatically.
+Requires Home Assistant 2026.9.0 or newer. `ampio-mqtt` is installed automatically.
 
 ### Updating
 

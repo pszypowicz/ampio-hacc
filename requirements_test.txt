@@ -15,5 +15,5 @@
 # custom_components/ampio/manifest.json, which is what HACS and Home Assistant
 # core install, and the gates read it from there so the tested version is
 # always the shipped version.
-homeassistant==2026.8.3
-pytest-homeassistant-custom-component==0.13.357
+homeassistant==2026.9.0
+pytest-homeassistant-custom-component==0.13.363
