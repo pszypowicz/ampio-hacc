@@ -5,6 +5,9 @@
     "@pszypowicz"
   ],
   "config_flow": true,
+  "dependencies": [
+    "repairs"
+  ],
   "documentation": "https://github.com/pszypowicz/ampio-homeassistant",
   "integration_type": "hub",
   "iot_class": "local_push",
@@ -16,5 +19,5 @@
     "ampio-mqtt==0.47.0"
   ],
   "single_config_entry": true,
-  "version": "0.0.15"
+  "version": "0.0.16"
 }

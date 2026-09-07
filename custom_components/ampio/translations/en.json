@@ -77,5 +77,37 @@
         "read_only_object": {
             "message": "This object is marked read-only in Ampio Designer, and the server drops every write to it."
         }
+    },
+    "issues": {
+        "stale_records_deleted": {
+            "title": "Ampio records to clean up",
+            "description": "Home Assistant still lists {count} Ampio devices or entities that Ampio Designer no longer provides. They were deleted, or moved to another module:\n\n{names}\n\nSelect Submit to delete these records. A moved object comes back under its new module after the reload that follows.",
+            "fix_flow": {
+                "abort": {
+                    "not_loaded": "The Ampio integration is not loaded. Load it, then try again."
+                },
+                "step": {
+                    "confirm": {
+                        "title": "Delete the stale Ampio records",
+                        "description": "This deletes {count} devices or entities from Home Assistant:\n\n{names}\n\nAutomations and dashboards that name them stop working. Nothing changes on the Ampio server."
+                    }
+                }
+            }
+        },
+        "stale_records_not_served": {
+            "title": "Ampio records to check",
+            "description": "Home Assistant still lists {count} Ampio devices or entities that the Ampio account of this integration is not served:\n\n{names}\n\nIf you deleted them in Ampio Designer, select Submit to delete these records. If the account lost access to them, restore the access in the Ampio app instead, then reload the integration.",
+            "fix_flow": {
+                "abort": {
+                    "not_loaded": "The Ampio integration is not loaded. Load it, then try again."
+                },
+                "step": {
+                    "confirm": {
+                        "title": "Delete the stale Ampio records",
+                        "description": "This deletes {count} devices or entities from Home Assistant:\n\n{names}\n\nAutomations and dashboards that name them stop working. Nothing changes on the Ampio server."
+                    }
+                }
+            }
+        }
     }
 }

@@ -162,6 +162,20 @@ async def test_removed_object_becomes_unavailable(
     assert hass.states.get(CO2_ENTITY_ID).state == STATE_UNAVAILABLE
 
 
+async def test_hidden_object_becomes_unavailable(
+    hass: HomeAssistant, mock_client: MagicMock, mock_config_entry: MockConfigEntry
+) -> None:
+    """A Designer delete keeps the row with the hidden bit set on the admin tier."""
+    await setup_integration(hass, mock_config_entry)
+
+    obj = replace(mock_client.objects[43], params=16)
+    mock_client.objects[43] = obj
+    emit(mock_client, ObjectUpdated(object=obj))
+    await hass.async_block_till_done()
+
+    assert hass.states.get(CO2_ENTITY_ID).state == STATE_UNAVAILABLE
+
+
 async def test_broker_availability_flips_entities(
     hass: HomeAssistant, mock_client: MagicMock, mock_config_entry: MockConfigEntry
 ) -> None:

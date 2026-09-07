@@ -32,6 +32,12 @@ Do not start either procedure below without a backup. Both delete records that H
 
 Use this when Ampio Designer no longer has an object, and its entity is still listed. Such an entity shows the state `unavailable` or the label "restored".
 
+Since version 0.0.16 the integration finds these records for you. After each start or reload it raises one repair on the Settings page, under Repairs. The repair lists every device and entity that the integration did not build on that start. Select Submit to delete them all at once. The integration then reloads. An object that you moved to another module in Ampio Designer comes back under its new module.
+
+The repair never deletes on its own. On an account that is not the administrator one, an object that lost its app permission looks the same as a deleted object. Read the list before you submit.
+
+To delete a single record by hand instead:
+
 1. Open Settings, then Devices and Services, then Entities.
 2. Search for the entity.
 3. Select it, then select the cog icon.
