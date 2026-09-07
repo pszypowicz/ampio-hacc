@@ -65,15 +65,14 @@ Avoid toggling an object's Matter checkbox in Designer once the object has an en
 
 ### Changes in Ampio Designer
 
-The integration follows the Ampio catalogue while it runs. On a standard account, an object you add in Designer and grant to the Home Assistant user gets its entity within seconds, under its module, in its app room. An object you delete or hide loses its entity at once, and the repair on the Settings page lists it. The delete stays yours, because on a standard account a lost app permission looks the same as a delete. A relay you re-tag as a light, or a pulse time you set, is followed the same way.
+The integration follows the Ampio catalogue while it runs, on both account tiers. An object you add in Designer gets its entity within seconds, under its module, in its app room. On a standard account the object must also be granted to the Home Assistant user in the app. An object you delete or hide loses its entity at once, and the repair on the Settings page lists it. The delete stays yours, because on a standard account a lost app permission looks the same as a delete. A relay you re-tag as a light, or a pulse time you set, is followed the same way.
 
-On the administrator login, the M-SERV does not push the catalogue the integration reads, so a change in Designer appears after a reload of the integration entry, or after a restart. Open Settings, then Devices and services, then Ampio, then the three-dot menu, then Reload.
+The administrator login gets no catalogue push from the M-SERV. It gets a digest of the app tables on every save instead, and the integration re-reads the catalogue when that digest changes, so a change in Designer appears a few seconds later there too.
 
 A rename in Designer or in the app changes nothing in Home Assistant. Rename the device there instead.
 
 ## Known limitations
 
-- On the administrator login, objects added in Designer need a reload of the entry. The library change that lifts this is tracked in [ampio-mqtt#166](https://github.com/pszypowicz/ampio-mqtt/issues/166).
 - Scenes are read once at setup. A scene added in the app needs a reload.
 - The Entity ID format setting under Settings, then System, does not apply. Every Ampio entity carries its own id, `<domain>.ampio_obj_<object id>`, so the setting cannot add the area or the floor to it.
 
