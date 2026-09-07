@@ -49,7 +49,7 @@ See [docs/stale-entities.md](docs/stale-entities.md) to clean up an entity Ampio
 2. In Home Assistant, go to Settings -> Devices & Services -> Add Integration -> Ampio.
 3. Enter the M-SERV host and that user's MQTT credentials.
 
-Devices appear as a hub for the M-SERV, one device per Ampio module, and one device per Ampio object under its module. An object device takes the name you gave the object in the Ampio app, and it takes the object's app room as its area when Home Assistant creates it. After that the area is yours: the integration never moves a device. A module takes the name you gave it in Ampio Designer, or `Ampio module 0x<MAC>` when your account is not an administrator one. The M-SERV's own objects sit under the hub. The tree follows the module each object belongs to in Ampio Designer. If you move an object to another module, or a replacement gives a module a new row in Designer, delete the object's device in Home Assistant after the next restart; it comes back under the new module with its area and name.
+Devices appear as a hub for the M-SERV, one device per Ampio module, and one device per Ampio object under its module. An object device takes the name you gave the object in the Ampio app, and it takes the object's app room as its area when Home Assistant creates it. After that the area is yours: the integration never moves a device. A module takes the name you gave it in Ampio Designer, or `Ampio module 0x<MAC>` when your account is not an administrator one. The M-SERV's own objects sit under the hub. The tree follows the module each object belongs to in Ampio Designer. If you move an object to another module, or a replacement gives a module a new row in Designer, the integration removes the object's entities and the repair on the Settings page offers the delete of its device. After the delete, the object comes back under the new module with its area and name.
 
 Home Assistant matches rooms to areas by name. If your Ampio rooms and your areas differ in spelling, rename one side before you add the integration, or move the devices afterwards.
 
@@ -62,6 +62,20 @@ One physical output can carry several objects in Ampio Designer. Each object get
 If a relay tagged as a light in Designer surfaces as a switch, see [docs/designer-quirks.md](docs/designer-quirks.md).
 
 Avoid toggling an object's Matter checkbox in Designer once the object has an entity here. Unchecking it clears the object's leaf id, which the diagnostics use to join the object to its Designer record. The device tree does not depend on it. To stop the M-SERV's Matter bridge, use "Clear configuration" in Designer's Matter panel instead. See [docs/designer-quirks.md](docs/designer-quirks.md).
+
+### Changes in Ampio Designer
+
+The integration follows the Ampio catalogue while it runs. On a standard account, an object you add in Designer and grant to the Home Assistant user gets its entity within seconds, under its module, in its app room. An object you delete or hide loses its entity at once, and the repair on the Settings page lists it. The delete stays yours, because on a standard account a lost app permission looks the same as a delete. A relay you re-tag as a light, or a pulse time you set, is followed the same way.
+
+On the administrator login, the M-SERV does not push the catalogue the integration reads, so a change in Designer appears after a reload of the integration entry, or after a restart. Open Settings, then Devices and services, then Ampio, then the three-dot menu, then Reload.
+
+A rename in Designer or in the app changes nothing in Home Assistant. Rename the device there instead.
+
+## Known limitations
+
+- On the administrator login, objects added in Designer need a reload of the entry. The library change that lifts this is tracked in [ampio-mqtt#166](https://github.com/pszypowicz/ampio-mqtt/issues/166).
+- Scenes are read once at setup. A scene added in the app needs a reload.
+- The Entity ID format setting under Settings, then System, does not apply. Every Ampio entity carries its own id, `<domain>.ampio_obj_<object id>`, so the setting cannot add the area or the floor to it.
 
 ## Relationship to home-assistant/core
 
