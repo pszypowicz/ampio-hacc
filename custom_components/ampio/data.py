@@ -174,6 +174,11 @@ class AmpioData:
             immediate=False,
             function=self._async_schedule_reconcile,
         )
+        # The stale-record report, handed over once every platform loaded.
+        # A batch that runs while a platform is still loading would report
+        # every entity that platform has not built yet, so nothing reports
+        # before setup says so.
+        self._report: Callable[[], None] | None = None
 
     @classmethod
     async def async_create(
@@ -352,6 +357,11 @@ class AmpioData:
         return _stop
 
     @callback
+    def async_mark_ready(self, report: Callable[[], None]) -> None:
+        """Let every batch from now on call ``report`` after it reconciles."""
+        self._report = report
+
+    @callback
     def _catalogue_event(self, event: ObjectUpdated | ObjectRemoved) -> None:
         """Queue an object whose catalogue row changed, and let a state push pass."""
         obj = event.object
@@ -359,6 +369,16 @@ class AmpioData:
             obj.id
         ) == fingerprint(obj):
             return
+        self.async_request_reconcile(obj)
+
+    @callback
+    def async_request_reconcile(self, obj: AmpioObject) -> None:
+        """Queue an object for the next batch, as a catalogue change would.
+
+        The removal hook calls it for a moved object's child: the delete is
+        the move, and the batch that follows builds the child again under
+        the parent the object resolves to now.
+        """
         self._pending[obj.id] = obj.object_key
         self._debouncer.async_schedule_call()
 
@@ -416,6 +436,8 @@ class AmpioData:
                     # Awaited, so that the platform's table holds the entities
                     # before the batch ends.
                     await registration.platform.async_add_entities(to_add)
+            if self._report is not None:
+                self._report()
 
     async def _async_refresh_rooms(self) -> None:
         """Re-read the room map, so that a new child takes its app room."""

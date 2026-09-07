@@ -29,6 +29,7 @@ from homeassistant.helpers import (
     area_registry as ar,
     device_registry as dr,
     entity_registry as er,
+    issue_registry as ir,
 )
 from homeassistant.util import dt as dt_util
 
@@ -49,6 +50,7 @@ WEJ_ENTITY_ID = pinned_id("binary_sensor", 146)
 RELAY_SWITCH_ID = pinned_id("switch", 74)
 RELAY_LIGHT_ID = pinned_id("light", 74)
 RELAY_PULSE_ID = pinned_id("sensor", 74, "_pulse")
+ISSUE_ID = "stale_records"
 
 
 def _new_input(**overrides: Any) -> AmpioObject:
@@ -232,7 +234,10 @@ async def test_hidden_object_loses_its_entity_until_shown_again(
     relay = mock_client.objects[74]
 
     await _update(hass, mock_client, replace(relay, params=16))
-    assert hass.states.get(RELAY_SWITCH_ID).state == STATE_UNAVAILABLE
+    state = hass.states.get(RELAY_SWITCH_ID)
+    assert state is not None
+    assert state.state == STATE_UNAVAILABLE
+    assert state.attributes[ATTR_RESTORED] is True
 
     await _update(hass, mock_client, relay)
     assert hass.states.get(RELAY_SWITCH_ID).state == STATE_ON
@@ -336,3 +341,106 @@ async def test_unload_drops_the_subscription(
     await hass.async_block_till_done()
 
     assert mock_client.live_subscriptions == []
+
+
+async def test_removed_object_is_listed_by_the_repair(
+    hass: HomeAssistant,
+    mock_client: MagicMock,
+    mock_config_entry: MockConfigEntry,
+    issue_registry: ir.IssueRegistry,
+) -> None:
+    """The repair lists a removed object within one batch, and a re-add clears it."""
+    mock_client.access_tier = AccessTier.RESTRICTED
+    await setup_integration(hass, mock_config_entry)
+    assert issue_registry.async_get_issue(DOMAIN, ISSUE_ID) is None
+
+    obj = await _remove(hass, mock_client, 146)
+
+    issue = issue_registry.async_get_issue(DOMAIN, ISSUE_ID)
+    assert issue is not None
+    assert issue.translation_key == "stale_records_not_served"
+    assert issue.translation_placeholders == {
+        "count": "1",
+        "names": "- Przycisk kino",
+    }
+
+    await _add(hass, mock_client, obj)
+
+    assert issue_registry.async_get_issue(DOMAIN, ISSUE_ID) is None
+
+
+async def test_hidden_object_is_listed_by_the_repair(
+    hass: HomeAssistant,
+    mock_client: MagicMock,
+    mock_config_entry: MockConfigEntry,
+    issue_registry: ir.IssueRegistry,
+) -> None:
+    """On the admin tier the wording says deleted, because the row is hidden."""
+    await setup_integration(hass, mock_config_entry)
+
+    await _update(hass, mock_client, replace(mock_client.objects[74], params=16))
+
+    issue = issue_registry.async_get_issue(DOMAIN, ISSUE_ID)
+    assert issue is not None
+    assert issue.translation_key == "stale_records_deleted"
+    assert issue.translation_placeholders == {"count": "1", "names": "- Object 74"}
+
+
+async def test_moved_object_is_listed_by_the_repair(
+    hass: HomeAssistant,
+    mock_client: MagicMock,
+    mock_config_entry: MockConfigEntry,
+    issue_registry: ir.IssueRegistry,
+) -> None:
+    """A moved object's stuck child is what the repair offers to delete."""
+    await setup_integration(hass, mock_config_entry)
+
+    await _update(
+        hass,
+        mock_client,
+        replace(mock_client.objects[74], id_urzadzenia=3, leaf_id="0_be82_rel_0_1"),
+    )
+
+    issue = issue_registry.async_get_issue(DOMAIN, ISSUE_ID)
+    assert issue is not None
+    assert issue.translation_placeholders == {"count": "1", "names": "- Object 74"}
+
+
+async def test_deleting_a_moved_child_brings_it_back_under_the_new_module(
+    hass: HomeAssistant,
+    mock_client: MagicMock,
+    mock_config_entry: MockConfigEntry,
+    device_registry: dr.DeviceRegistry,
+    area_registry: ar.AreaRegistry,
+) -> None:
+    """The delete the hook permits is the move, and the next batch completes it."""
+    await setup_integration(hass, mock_config_entry)
+    child = _child(device_registry, mock_config_entry, 74)
+    assert child is not None
+    piwnica = area_registry.async_get_or_create("Piwnica")
+    device_registry.async_update_child_device(
+        child.id, name_by_user="Przekaznik piwnica", area_id=piwnica.id
+    )
+
+    await _update(
+        hass,
+        mock_client,
+        replace(mock_client.objects[74], id_urzadzenia=3, leaf_id="0_be82_rel_0_1"),
+    )
+    stuck = _child(device_registry, mock_config_entry, 74)
+    assert stuck is not None
+    assert await async_remove_config_entry_device(hass, mock_config_entry, stuck)
+    device_registry.async_remove_device(stuck.id)
+    await _settle(hass)
+
+    moved = _child(device_registry, mock_config_entry, 74)
+    new_module = device_registry.async_get_device_by_identifier(
+        (DOMAIN, "module:3"), mock_config_entry.entry_id
+    )
+    assert moved is not None
+    assert new_module is not None
+    assert moved.id == child.id
+    assert moved.parent_device_id == new_module.id
+    assert moved.name_by_user == "Przekaznik piwnica"
+    assert moved.area_id == piwnica.id
+    assert hass.states.get(RELAY_SWITCH_ID).state == STATE_ON

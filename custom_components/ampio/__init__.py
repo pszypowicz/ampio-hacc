@@ -1,5 +1,6 @@
 """The Ampio integration."""
 
+from functools import partial
 import logging
 
 from ampio_mqtt import (
@@ -24,7 +25,7 @@ from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr, issue_registry as ir
 
 from .const import DOMAIN, PLATFORMS, STALE_RECORDS_ISSUE
-from .data import AmpioConfigEntry, AmpioData
+from .data import AmpioConfigEntry, AmpioData, eligible_objects
 from .stale import async_report_stale_records
 
 _LOGGER = logging.getLogger(__name__)
@@ -104,7 +105,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: AmpioConfigEntry) -> boo
     # The subscription starts before the platforms load. An event that lands
     # while a platform is still loading queues its id like any other, and a
     # platform that registers later builds the new object in its own initial
-    # pass, so no window is left between the two.
+    # pass. The one window is the loop turn between a platform's registration
+    # and its initial add; a batch in that turn adds the same unique id, and
+    # Home Assistant refuses the duplicate with a log line.
     entry.async_on_unload(entry.runtime_data.async_subscribe())
 
     # The description sweep fills each object's admin-guarded record bundle,
@@ -156,7 +159,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: AmpioConfigEntry) -> boo
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     # The platforms have claimed every record they build. Whatever the
     # registries still hold for this entry beyond that is a leftover the
-    # user gets to delete through one repair issue.
+    # user gets to delete through one repair issue, recomputed after every
+    # catalogue change from here on.
+    entry.runtime_data.async_mark_ready(
+        partial(async_report_stale_records, hass, entry)
+    )
     async_report_stale_records(hass, entry)
     return True
 
@@ -180,18 +187,23 @@ async def async_remove_config_entry_device(
     The hub always stays. A module device stays while the account still
     receives an object on it, and an object's child device stays while the
     account still receives that object and the child sits under the parent
-    the object resolves to. The registry cannot re-parent a child, so the
-    delete is how the user moves it, and the next reload builds it again
-    under the resolved parent with its id, its area, and its name restored.
+    the object resolves to. The batch the hook queues builds it again under
+    the resolved parent within seconds, with its id, its area, and its name
+    restored.
     """
-    live, expected_parent = entry.runtime_data.live_identifiers()
+    data = entry.runtime_data
+    live, expected_parent = data.live_identifiers()
     if isinstance(device_entry, dr.ChildDeviceEntry):
         # The registry cannot move a child, so a child whose object now
-        # resolves elsewhere is deletable: the delete is the move.
+        # resolves elsewhere is deletable: the delete is the move, and the
+        # batch queued here builds the child again under the new parent.
         for identifier in device_entry.identifiers:
             if (
                 identifier in expected_parent
                 and expected_parent[identifier] != device_entry.parent_device_id
             ):
+                for obj in eligible_objects(data.client):
+                    if (DOMAIN, obj.object_key) == identifier:
+                        data.async_request_reconcile(obj)
                 return True
     return not any(identifier in live for identifier in device_entry.identifiers)
