@@ -1,7 +1,8 @@
 """Runtime data for the Ampio integration: the device tree the catalogue defines."""
 
 from collections import Counter
-from collections.abc import Iterator
+from collections.abc import Callable, Iterable, Iterator
+from dataclasses import dataclass
 import logging
 from typing import Final
 
@@ -16,6 +17,12 @@ from ampio_mqtt import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers.entity import Entity
+from homeassistant.helpers.entity_platform import (
+    AddConfigEntryEntitiesCallback,
+    EntityPlatform,
+    async_get_current_platform,
+)
 
 from .const import DOMAIN
 
@@ -42,6 +49,19 @@ def eligible_objects(client: AmpioClient) -> Iterator[AmpioObject]:
     own detection and simulation objects, which no platform covers.
     """
     return (obj for obj in client.objects.values() if obj.visible and not obj.is_system)
+
+
+# What a platform builds for one object: the entities, or nothing. The
+# platform module owns the partition; the runtime data owns when it runs.
+type EntityFactory = Callable[[AmpioData, AmpioObject], Iterable[Entity]]
+
+
+@dataclass(frozen=True)
+class _PlatformRegistration:
+    """One platform's factory, and the platform that holds what it built."""
+
+    platform: EntityPlatform
+    factory: EntityFactory
 
 
 def _opt_str(value: object | None) -> str | None:
@@ -97,6 +117,7 @@ class AmpioData:
         self.rooms: dict[int, str] = {}
         # The Designer row of the M-SERV itself. Its objects sit on the hub.
         self.mserv_id = mserv_id
+        self._platforms: list[_PlatformRegistration] = []
 
     @classmethod
     async def async_create(
@@ -206,6 +227,57 @@ class AmpioData:
             serial_number=_opt_str(module.mac_global) if module else None,
         )
         self.module_device_ids[module_id] = device.id
+
+    @callback
+    def async_add_platform(
+        self, factory: EntityFactory, async_add_entities: AddConfigEntryEntitiesCallback
+    ) -> None:
+        """Register a platform, and build its entities for the catalogue as it stands.
+
+        Valid inside the platform's ``async_setup_entry`` alone, where Home
+        Assistant sets the current platform.
+        """
+        registration = _PlatformRegistration(async_get_current_platform(), factory)
+        self._platforms.append(registration)
+        entities: list[Entity] = []
+        for obj in eligible_objects(self.client):
+            entities.extend(self._expected_entities(registration, obj).values())
+        async_add_entities(entities)
+
+    def _expected_entities(
+        self, registration: _PlatformRegistration, obj: AmpioObject | None
+    ) -> dict[str, Entity]:
+        """The entities a platform builds for an object, keyed by unique id.
+
+        Nothing for an object that left the catalogue, for a hidden or
+        system object, and for an object whose child device hangs under a
+        parent it has outgrown. Home Assistant cannot re-parent a child, so
+        the delete of that device is the move, and the repair offers it.
+        """
+        if obj is None or not obj.visible or obj.is_system:
+            return {}
+        entities = {
+            uid: entity
+            for entity in registration.factory(self, obj)
+            if (uid := entity.unique_id) is not None
+        }
+        if entities and self._misparented(obj):
+            _LOGGER.warning(
+                "Object %s moved to another module in Ampio Designer, so its "
+                "entities are removed. Use the repair on the Settings page, or "
+                "delete its device, and it comes back under the new module",
+                obj.id,
+            )
+            return {}
+        return entities
+
+    @callback
+    def _misparented(self, obj: AmpioObject) -> bool:
+        """Whether the object's child device hangs under a parent it has outgrown."""
+        child = dr.async_get(self.hass).async_get_child_device_by_identifier(
+            (DOMAIN, obj.object_key), self.entry.entry_id
+        )
+        return child is not None and child.parent_device_id != self.parent_for(obj)
 
     def parent_for(self, obj: AmpioObject) -> str:
         """The device an object's child hangs under: its module, or the hub.

@@ -10,7 +10,7 @@ from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .const import DOMAIN
-from .data import AmpioConfigEntry, AmpioData, eligible_objects
+from .data import AmpioConfigEntry, AmpioData
 from .entity import AmpioEntity, async_turn_on_honoring_pulse
 from .light import LIGHT_MATTER_TYPES
 
@@ -40,18 +40,18 @@ def is_switch(obj: AmpioObject) -> bool:
     return kind.key == "relay" and obj.matter_device_type not in LIGHT_MATTER_TYPES
 
 
+def build_switches(data: AmpioData, obj: AmpioObject) -> list[AmpioSwitch]:
+    """The switch platform's entities for one object."""
+    return [AmpioSwitch(data, obj)] if is_switch(obj) else []
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: AmpioConfigEntry,
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
-    """Set up Ampio switches from the discovery-time object catalogue."""
-    data = entry.runtime_data
-    async_add_entities(
-        AmpioSwitch(data, obj)
-        for obj in eligible_objects(data.client)
-        if is_switch(obj)
-    )
+    """Register the switch platform; the runtime data builds and keeps its entities."""
+    entry.runtime_data.async_add_platform(build_switches, async_add_entities)
 
 
 class AmpioSwitch(AmpioEntity, SwitchEntity):

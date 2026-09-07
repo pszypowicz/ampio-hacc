@@ -14,10 +14,17 @@ from homeassistant.components.cover import (
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
-from .data import AmpioConfigEntry, AmpioData, eligible_objects
+from .data import AmpioConfigEntry, AmpioData
 from .entity import AmpioEntity
 
 PARALLEL_UPDATES = 0
+
+
+def build_covers(data: AmpioData, obj: AmpioObject) -> list[AmpioCover]:
+    """The cover platform's entities for one object."""
+    if isinstance(obj.kind, OutputKind) and obj.kind.cover:
+        return [AmpioCover(data, obj)]
+    return []
 
 
 async def async_setup_entry(
@@ -25,13 +32,8 @@ async def async_setup_entry(
     entry: AmpioConfigEntry,
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
-    """Set up Ampio covers from the discovery-time object catalogue."""
-    data = entry.runtime_data
-    async_add_entities(
-        AmpioCover(data, obj)
-        for obj in eligible_objects(data.client)
-        if isinstance(obj.kind, OutputKind) and obj.kind.cover
-    )
+    """Register the cover platform; the runtime data builds and keeps its entities."""
+    entry.runtime_data.async_add_platform(build_covers, async_add_entities)
 
 
 class AmpioCover(AmpioEntity, CoverEntity):

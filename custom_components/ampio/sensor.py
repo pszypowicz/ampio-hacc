@@ -24,7 +24,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .button import is_button
-from .data import AmpioConfigEntry, AmpioData, eligible_objects
+from .data import AmpioConfigEntry, AmpioData
 from .entity import AmpioEntity
 from .light import is_light
 from .switch import is_switch
@@ -129,23 +129,26 @@ def pulse_applies(obj: AmpioObject) -> bool:
     return is_light(obj) and not (isinstance(obj.kind, OutputKind) and obj.kind.color)
 
 
+def build_sensors(data: AmpioData, obj: AmpioObject) -> list[SensorEntity]:
+    """The sensor platform's entities for one object: a reading, a pulse time, or both."""
+    entities: list[SensorEntity] = []
+    if pulse_applies(obj):
+        entities.append(AmpioPulseTimeSensor(data, obj))
+    if (
+        isinstance(kind := obj.kind, SensorKind)
+        and (description := SENSOR_DESCRIPTIONS.get(kind.key)) is not None
+    ):
+        entities.append(AmpioSensor(data, obj, description))
+    return entities
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: AmpioConfigEntry,
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
-    """Set up Ampio sensors from the discovery-time object catalogue."""
-    data = entry.runtime_data
-    entities: list[SensorEntity] = []
-    for obj in eligible_objects(data.client):
-        if pulse_applies(obj):
-            entities.append(AmpioPulseTimeSensor(data, obj))
-        if not isinstance(kind := obj.kind, SensorKind):
-            continue
-        if (description := SENSOR_DESCRIPTIONS.get(kind.key)) is None:
-            continue
-        entities.append(AmpioSensor(data, obj, description))
-    async_add_entities(entities)
+    """Register the sensor platform; the runtime data builds and keeps its entities."""
+    entry.runtime_data.async_add_platform(build_sensors, async_add_entities)
 
 
 class AmpioSensor(AmpioEntity, SensorEntity):
