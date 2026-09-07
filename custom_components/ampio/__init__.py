@@ -1,6 +1,5 @@
 """The Ampio integration."""
 
-from collections import Counter
 import logging
 
 from ampio_mqtt import (
@@ -8,8 +7,6 @@ from ampio_mqtt import (
     AmpioAuthError,
     AmpioClient,
     AmpioConnectionError,
-    AmpioModule,
-    AmpioObject,
     AmpioTimeoutError,
     AuthFailed,
     AvailabilityChanged,
@@ -27,40 +24,10 @@ from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr, issue_registry as ir
 
 from .const import DOMAIN, PLATFORMS, STALE_RECORDS_ISSUE
-from .data import (
-    HUB_IDENTIFIER,
-    AmpioConfigEntry,
-    AmpioData,
-    eligible_objects,
-    module_identifier,
-)
+from .data import AmpioConfigEntry, AmpioData
 from .stale import async_report_stale_records
 
 _LOGGER = logging.getLogger(__name__)
-
-
-def _opt_str(value: object | None) -> str | None:
-    """Stringify a catalogue field, passing None through."""
-    return None if value is None else str(value)
-
-
-def _module_name(module: AmpioModule | None, mac: int | None, module_id: int) -> str:
-    """Name a module device: the installer's own name, the mac, or the row.
-
-    ``nazwa_urzadzenia`` is the name the installer gave the module in Ampio
-    Designer, and the module catalogue that carries it answers the
-    administrator login alone. A restricted account is served the
-    leaf-embedded mac instead, and a module whose objects all lost their
-    leaf is left with its Designer row id. So this name follows the account
-    tier. Nothing depends on it: ``AmpioEntity`` pins the entity id, so a
-    name that changes on a tier switch renames the device in the interface
-    and moves no id.
-    """
-    if module is not None and module.nazwa_urzadzenia:
-        return module.nazwa_urzadzenia
-    if mac is not None:
-        return f"Ampio module 0x{mac:X}"
-    return f"Ampio module {module_id}"
 
 
 async def _async_sweep_records(client: AmpioClient) -> None:
@@ -132,102 +99,20 @@ async def async_setup_entry(hass: HomeAssistant, entry: AmpioConfigEntry) -> boo
         )
         hass.config_entries.async_update_entry(entry, unique_id=info.server_key)
 
-    # The hub is built from the server-info reply both account tiers receive.
-    # Its name is the product name, because one M-SERV runs one install and
-    # its catalogue row names it no better. The row decorates the model.
-    device_registry = dr.async_get(hass)
-    mserv = client.mserv
-    hub = device_registry.async_get_or_create(
-        config_entry_id=entry.entry_id,
-        identifiers={HUB_IDENTIFIER},
-        manufacturer="Ampio",
-        name="M-SERV",
-        model=mserv.model if mserv and mserv.model else "M-SERV",
-        sw_version=info.server_version,
-        serial_number=info.device_id,
-        configuration_url=f"http://{info.local_ip}" if info.local_ip else None,
-    )
-
-    # One device per Designer module row, registered before the platforms
-    # load. The row id rides every object on both account tiers, so the tree
-    # holds still across a tier change. The admin catalogue names the module
-    # and decorates the model, the versions, and the serial; a restricted
-    # account falls back to the leaf-embedded mac in the name. None of those
-    # reaches an entity id.
-    #
-    # The M-SERV's own row is read off the objects that name it, because
-    # both tiers receive those; the admin-only catalogue row answers only
-    # when the account is served no server-owned object at all. Reading the
-    # catalogue first would build one tree for an administrator and another
-    # for a restricted account wherever the two disagree. A split vote goes
-    # to the row most objects name, and ties to the first one seen.
-    server_rows = Counter(
-        obj.id_urzadzenia
-        for obj in eligible_objects(client)
-        if obj.is_server_owned and obj.id_urzadzenia is not None
-    )
-    mserv_id: int | None = None
-    if server_rows:
-        mserv_id = server_rows.most_common(1)[0][0]
-    elif mserv is not None:
-        mserv_id = mserv.id
-    # One object per row stands for it: the first in catalogue order that
-    # carries a leaf mac, which is both the mac that names the row and the
-    # mac the catalogue join is gated on. A row whose objects have all lost
-    # their leaf keeps the first object it saw and joins ungated.
-    module_reps: dict[int, AmpioObject] = {}
-    for obj in eligible_objects(client):
-        module_id = obj.id_urzadzenia
-        if obj.is_server_owned or module_id is None or module_id == mserv_id:
-            continue
-        rep = module_reps.get(module_id)
-        if rep is None or (rep.module_mac is None and obj.module_mac is not None):
-            module_reps[module_id] = obj
-    module_device_ids: dict[int, str] = {}
-    for module_id, rep in module_reps.items():
-        # DB ids are volatile across a Designer resync while the leaf mac is
-        # the hardware identity, so the library's join drops a row whose mac
-        # disagrees with the leaf, and such a row decorates nothing.
-        module = client.module_for(rep)
-        module_device = device_registry.async_get_or_create(
-            config_entry_id=entry.entry_id,
-            identifiers={module_identifier(module_id)},
-            name=_module_name(module, rep.module_mac, module_id),
-            manufacturer="Ampio",
-            via_device_id=hub.id,
-            model=module.model if module else None,
-            sw_version=_opt_str(module.wersja_softu) if module else None,
-            hw_version=_opt_str(module.wersja_pcb) if module else None,
-            serial_number=_opt_str(module.mac_global) if module else None,
-        )
-        module_device_ids[module_id] = module_device.id
-
-    # The room map seeds each object child's area at its first creation,
-    # and the diagnostics download carries it. Nothing in the entity or
-    # device path depends on it after that, so a failure costs the seed and
-    # must not fail setup.
-    try:
-        rooms = await client.fetch_rooms()
-    except AmpioConnectionError:
-        _LOGGER.warning(
-            "Could not fetch the Ampio room map; the devices get no area suggestion"
-        )
-        rooms = {}
+    entry.runtime_data = await AmpioData.async_create(hass, entry, client, info)
 
     # The description sweep fills each object's admin-guarded record bundle,
-    # for the diagnostics download in the same way. It runs in the
-    # background, because the M-SERV answers the requests one module at a
-    # time and the pass therefore takes as long as the install is large.
-    # Nothing waits on it: the platform partition reads
-    # ``matter_device_type``, the catalogue column both tiers receive, which
-    # the sweep never touches (docs/designer-quirks.md), and a record that
-    # lands after an entity does reaches no id and no platform choice.
+    # for the diagnostics download. It runs in the background, because the
+    # M-SERV answers the requests one module at a time and the pass
+    # therefore takes as long as the install is large. Nothing waits on it:
+    # the platform partition reads ``matter_device_type``, the catalogue
+    # column both tiers receive, which the sweep never touches
+    # (docs/designer-quirks.md), and a record that lands after an entity
+    # does reaches no id and no platform choice.
     if client.access_tier is AccessTier.ADMIN:
         entry.async_create_background_task(
             hass, _async_sweep_records(client), "ampio_resolve_records"
         )
-
-    entry.runtime_data = AmpioData(client, hub.id, module_device_ids, rooms, mserv_id)
 
     was_unavailable = False
 
