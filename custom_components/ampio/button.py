@@ -10,8 +10,8 @@ from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .const import DOMAIN
-from .data import AmpioConfigEntry
-from .entity import AmpioEntity, async_turn_on_honoring_pulse, eligible_objects
+from .data import AmpioConfigEntry, AmpioData
+from .entity import AmpioEntity, async_turn_on_honoring_pulse
 
 PARALLEL_UPDATES = 0
 
@@ -29,18 +29,18 @@ def is_button(obj: AmpioObject) -> bool:
     return obj.bell
 
 
+def build_buttons(data: AmpioData, obj: AmpioObject) -> list[AmpioButton]:
+    """The button platform's entities for one object."""
+    return [AmpioButton(data, obj)] if is_button(obj) else []
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: AmpioConfigEntry,
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
-    """Set up Ampio buttons from the discovery-time object catalogue."""
-    data = entry.runtime_data
-    async_add_entities(
-        AmpioButton(data, obj)
-        for obj in eligible_objects(data.client)
-        if is_button(obj)
-    )
+    """Register the button platform; the runtime data builds and keeps its entities."""
+    entry.runtime_data.async_add_platform(build_buttons, async_add_entities)
 
 
 class AmpioButton(AmpioEntity, ButtonEntity):

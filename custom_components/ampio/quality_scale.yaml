@@ -55,12 +55,20 @@ rules:
   discovery: todo
   docs-data-update: todo
   docs-examples: todo
-  docs-known-limitations: todo
+  docs-known-limitations: done
   docs-supported-devices: todo
   docs-supported-functions: todo
   docs-troubleshooting: todo
   docs-use-cases: todo
-  dynamic-devices: todo
+  dynamic-devices:
+    status: done
+    comment: |
+      A Designer save makes the M-SERV push the catalogue into every account
+      namespace. The runtime data subscribes to the library's catalogue
+      events and reconciles each changed object's entities against the
+      platform factories, so an object added or shown appears without a
+      reload. The admin login gets no push for its own catalogue and needs a
+      reload until ampio-mqtt re-requests it on the pushed MD5.
   entity-category: done
   entity-device-class: done
   entity-disabled-by-default:
@@ -74,9 +82,10 @@ rules:
   stale-devices:
     status: done
     comment: |
-      Records the last setup left unclaimed raise one repair issue whose fix
-      deletes them. The integration never deletes on its own, because on a
-      restricted account a grant change looks the same as a delete.
+      Records no platform holds raise one repair issue whose fix deletes
+      them. The issue is recomputed after every setup and after every
+      catalogue change. The integration never deletes on its own, because
+      on a restricted account a grant change looks the same as a delete.
 
   # Platinum
   async-dependency: done

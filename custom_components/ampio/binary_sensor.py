@@ -12,7 +12,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .data import AmpioConfigEntry, AmpioData
-from .entity import AmpioEntity, eligible_objects
+from .entity import AmpioEntity
 
 PARALLEL_UPDATES = 0
 
@@ -32,21 +32,22 @@ BINARY_SENSOR_DESCRIPTIONS: dict[str, BinarySensorEntityDescription] = {
 }
 
 
+def build_binary_sensors(data: AmpioData, obj: AmpioObject) -> list[AmpioBinarySensor]:
+    """The binary sensor platform's entities for one object."""
+    if not isinstance(kind := obj.kind, InputKind):
+        return []
+    if (description := BINARY_SENSOR_DESCRIPTIONS.get(kind.key)) is None:
+        return []
+    return [AmpioBinarySensor(data, obj, description)]
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: AmpioConfigEntry,
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
-    """Set up Ampio binary sensors from the discovery-time object catalogue."""
-    data = entry.runtime_data
-    entities: list[AmpioBinarySensor] = []
-    for obj in eligible_objects(data.client):
-        if not isinstance(kind := obj.kind, InputKind):
-            continue
-        if (description := BINARY_SENSOR_DESCRIPTIONS.get(kind.key)) is None:
-            continue
-        entities.append(AmpioBinarySensor(data, obj, description))
-    async_add_entities(entities)
+    """Register the binary sensor platform; the runtime data builds and keeps its entities."""
+    entry.runtime_data.async_add_platform(build_binary_sensors, async_add_entities)
 
 
 class AmpioBinarySensor(AmpioEntity, BinarySensorEntity):

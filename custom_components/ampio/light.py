@@ -14,7 +14,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .data import AmpioConfigEntry, AmpioData
-from .entity import AmpioEntity, async_turn_on_honoring_pulse, eligible_objects
+from .entity import AmpioEntity, async_turn_on_honoring_pulse
 
 PARALLEL_UPDATES = 0
 
@@ -47,16 +47,18 @@ def is_light(obj: AmpioObject) -> bool:
     return kind.key == "relay" and obj.matter_device_type in LIGHT_MATTER_TYPES
 
 
+def build_lights(data: AmpioData, obj: AmpioObject) -> list[AmpioLight]:
+    """The light platform's entities for one object."""
+    return [AmpioLight(data, obj)] if is_light(obj) else []
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: AmpioConfigEntry,
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
-    """Set up Ampio lights from the discovery-time object catalogue."""
-    data = entry.runtime_data
-    async_add_entities(
-        AmpioLight(data, obj) for obj in eligible_objects(data.client) if is_light(obj)
-    )
+    """Register the light platform; the runtime data builds and keeps its entities."""
+    entry.runtime_data.async_add_platform(build_lights, async_add_entities)
 
 
 class AmpioLight(AmpioEntity, LightEntity):
