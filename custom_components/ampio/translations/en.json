@@ -77,5 +77,35 @@
         "read_only_object": {
             "message": "This object is marked read-only in Ampio Designer, and the server drops every write to it."
         }
+    },
+    "issues": {
+        "stale_records_deleted": {
+            "title": "Ampio records to clean up",
+            "fix_flow": {
+                "abort": {
+                    "not_loaded": "The Ampio integration is not loaded. Load it, then try again."
+                },
+                "step": {
+                    "confirm": {
+                        "title": "Delete the stale Ampio records",
+                        "description": "Home Assistant still lists {count} Ampio devices or entities that Ampio Designer no longer provides. They were deleted, or moved to another module:\n\n{names}\n\nSubmit deletes these records from Home Assistant. Automations and dashboards that name them stop working. Nothing changes on the Ampio server. A moved object comes back under its new module after the reload that follows."
+                    }
+                }
+            }
+        },
+        "stale_records_not_served": {
+            "title": "Ampio records to check",
+            "fix_flow": {
+                "abort": {
+                    "not_loaded": "The Ampio integration is not loaded. Load it, then try again."
+                },
+                "step": {
+                    "confirm": {
+                        "title": "Delete the stale Ampio records",
+                        "description": "Home Assistant still lists {count} Ampio devices or entities that the Ampio account of this integration is not served:\n\n{names}\n\nIf you deleted them in Ampio Designer, Submit deletes these records from Home Assistant. Automations and dashboards that name them stop working. Nothing changes on the Ampio server. If the account lost access to them, do not submit. Restore the access in the Ampio app, then reload the integration."
+                    }
+                }
+            }
+        }
     }
 }

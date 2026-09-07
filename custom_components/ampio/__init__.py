@@ -24,11 +24,12 @@ from homeassistant.const import (
 )
 from homeassistant.core import Event, HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
-from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import device_registry as dr, issue_registry as ir
 
-from .const import DOMAIN, PLATFORMS
+from .const import DOMAIN, PLATFORMS, STALE_RECORDS_ISSUE
 from .data import AmpioConfigEntry, AmpioData
-from .entity import HUB_IDENTIFIER, eligible_objects, module_identifier, resolve_parent
+from .entity import HUB_IDENTIFIER, eligible_objects, module_identifier
+from .stale import async_report_stale_records, live_identifiers
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -257,12 +258,21 @@ async def async_setup_entry(hass: HomeAssistant, entry: AmpioConfigEntry) -> boo
     )
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    # The platforms have claimed every record they build. Whatever the
+    # registries still hold for this entry beyond that is a leftover the
+    # user gets to delete through one repair issue.
+    async_report_stale_records(hass, entry)
     return True
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: AmpioConfigEntry) -> bool:
     """Unload a config entry."""
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+
+
+async def async_remove_entry(hass: HomeAssistant, entry: AmpioConfigEntry) -> None:
+    """The records go with the entry, so the repair has nothing left to fix."""
+    ir.async_delete_issue(hass, DOMAIN, STALE_RECORDS_ISSUE)
 
 
 async def async_remove_config_entry_device(
@@ -278,17 +288,7 @@ async def async_remove_config_entry_device(
     delete is how the user moves it, and the next reload builds it again
     under the resolved parent with its id, its area, and its name restored.
     """
-    data = entry.runtime_data
-    live: set[tuple[str, str]] = {HUB_IDENTIFIER}
-    expected_parent: dict[tuple[str, str], str] = {}
-    for obj in eligible_objects(data.client):
-        parent = resolve_parent(
-            obj, data.hub_device_id, data.module_device_ids, data.mserv_id
-        )
-        if parent != data.hub_device_id and obj.id_urzadzenia is not None:
-            live.add(module_identifier(obj.id_urzadzenia))
-        live.add((DOMAIN, obj.object_key))
-        expected_parent[(DOMAIN, obj.object_key)] = parent
+    live, expected_parent = live_identifiers(entry.runtime_data)
     if isinstance(device_entry, dr.ChildDeviceEntry):
         # The registry cannot move a child, so a child whose object now
         # resolves elsewhere is deletable: the delete is the move.

@@ -18,3 +18,6 @@ PLATFORMS: Final = [
 ]
 
 DEFAULT_HOST: Final = "ampio.local"
+
+# The one repair issue: registry records the last setup left unclaimed.
+STALE_RECORDS_ISSUE: Final = "stale_records"

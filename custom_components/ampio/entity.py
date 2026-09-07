@@ -181,5 +181,11 @@ class AmpioEntity(Entity):
     @property
     @override
     def available(self) -> bool:
-        """Available while the broker is connected and the object exists."""
-        return self._data.client.available and self._object is not None
+        """Available while the broker is connected and the object is still shown.
+
+        A Designer delete keeps the row on the administrator tier and sets
+        its hidden bit, so ``visible`` is the delete signal there. The
+        restricted tier drops the row instead, and ``_object`` goes None.
+        """
+        obj = self._object
+        return self._data.client.available and obj is not None and obj.visible

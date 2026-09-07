@@ -70,14 +70,13 @@ rules:
   exception-translations: done
   icon-translations: todo
   reconfiguration-flow: todo
-  repair-issues:
-    status: exempt
-    comment: This integration has no repairable conditions.
+  repair-issues: done
   stale-devices:
     status: done
     comment: |
-      A grant change cannot be distinguished from a temporary absence, so
-      stale devices are kept and the user deletes them from the UI.
+      Records the last setup left unclaimed raise one repair issue whose fix
+      deletes them. The integration never deletes on its own, because on a
+      restricted account a grant change looks the same as a delete.
 
   # Platinum
   async-dependency: done
