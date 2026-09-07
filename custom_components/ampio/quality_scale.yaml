@@ -67,8 +67,9 @@ rules:
       namespace. The runtime data subscribes to the library's catalogue
       events and reconciles each changed object's entities against the
       platform factories, so an object added or shown appears without a
-      reload. The admin login gets no push for its own catalogue and needs a
-      reload until ampio-mqtt re-requests it on the pushed MD5.
+      reload on both account tiers. The admin login gets no catalogue push,
+      and ampio-mqtt re-requests the admin catalogue when the pushed digest
+      of the app tables changes.
   entity-category: done
   entity-device-class: done
   entity-disabled-by-default:

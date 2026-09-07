@@ -26,7 +26,7 @@ Verified on server 1865 with a virtual test relay, and pinned by the integration
 
 ## Moving an object to another module
 
-Home Assistant cannot move a child device to another parent. When you move an object to another module in Designer, or a replacement gives a module a new row, the object's device keeps its old parent. On a standard account the integration removes the object's entities within seconds, logs one warning that names the object, and lists the device in the repair on the Settings page. On the administrator login the same happens on the next reload.
+Home Assistant cannot move a child device to another parent. When you move an object to another module in Designer, or a replacement gives a module a new row, the object's device keeps its old parent. The integration removes the object's entities within seconds, logs one warning that names the object, and lists the device in the repair on the Settings page.
 
 Submit the repair, or delete the object's device under Settings, then Devices and services. The object comes back under the new module, with its id, its area, and its name restored. If that object was the last one on its old module, the old module device stays behind empty, and the repair lists it too.
 
