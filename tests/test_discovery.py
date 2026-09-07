@@ -1,0 +1,338 @@
+"""Tests for the runtime discovery of the Ampio integration."""
+
+from dataclasses import replace
+from datetime import timedelta
+import logging
+from typing import Any
+from unittest.mock import MagicMock
+
+from ampio_mqtt import (
+    AccessTier,
+    AmpioConnectionError,
+    AmpioObject,
+    ObjectAdded,
+    ObjectRemoved,
+    ObjectUpdated,
+)
+import pytest
+from pytest_homeassistant_custom_component.common import (
+    MockConfigEntry,
+    async_fire_time_changed,
+)
+from syrupy.assertion import SnapshotAssertion
+
+from custom_components.ampio import async_remove_config_entry_device
+from custom_components.ampio.const import DOMAIN
+from homeassistant.const import ATTR_RESTORED, STATE_OFF, STATE_ON, STATE_UNAVAILABLE
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers import (
+    area_registry as ar,
+    device_registry as dr,
+    entity_registry as er,
+)
+from homeassistant.util import dt as dt_util
+
+from . import setup_integration
+from .conftest import (
+    DEFAULT_ROOMS,
+    HUB_IDENTIFIER,
+    MSENS_IDENTIFIER,
+    emit,
+    make_object,
+    pinned_id,
+    unique_id,
+)
+
+NEW_INPUT_ID = 200
+NEW_INPUT_ENTITY_ID = pinned_id("binary_sensor", NEW_INPUT_ID)
+WEJ_ENTITY_ID = pinned_id("binary_sensor", 146)
+RELAY_SWITCH_ID = pinned_id("switch", 74)
+RELAY_LIGHT_ID = pinned_id("light", 74)
+RELAY_PULSE_ID = pinned_id("sensor", 74, "_pulse")
+
+
+def _new_input(**overrides: Any) -> AmpioObject:
+    """A wired input added in Designer after setup, on the default module."""
+    fields: dict[str, Any] = {
+        "leaf_id": "0_cb8f_wej_0_12",
+        "funkcja": 12,
+        "opis_menu": "Przycisk taras",
+        "state": "0",
+    }
+    fields.update(overrides)
+    return make_object(NEW_INPUT_ID, "wej", 7, **fields)
+
+
+async def _settle(hass: HomeAssistant) -> None:
+    """Let the reconcile cooldown elapse and the batch finish.
+
+    The batch runs as an entry background task, which the default
+    ``async_block_till_done`` does not wait for.
+    """
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=2))
+    await hass.async_block_till_done(wait_background_tasks=True)
+
+
+async def _add(hass: HomeAssistant, client: MagicMock, obj: AmpioObject) -> None:
+    client.objects[obj.id] = obj
+    emit(client, ObjectAdded(object=obj))
+    await _settle(hass)
+
+
+async def _update(hass: HomeAssistant, client: MagicMock, obj: AmpioObject) -> None:
+    client.objects[obj.id] = obj
+    emit(client, ObjectUpdated(object=obj))
+    await _settle(hass)
+
+
+async def _remove(hass: HomeAssistant, client: MagicMock, oid: int) -> AmpioObject:
+    obj: AmpioObject = client.objects.pop(oid)
+    emit(client, ObjectRemoved(object=obj))
+    await _settle(hass)
+    return obj
+
+
+def _child(
+    device_registry: dr.DeviceRegistry, entry: MockConfigEntry, oid: int
+) -> dr.ChildDeviceEntry | None:
+    return device_registry.async_get_child_device_by_identifier(
+        (DOMAIN, unique_id(oid)), entry.entry_id
+    )
+
+
+async def test_new_object_gets_its_entity_device_and_area(
+    hass: HomeAssistant,
+    mock_client: MagicMock,
+    mock_config_entry: MockConfigEntry,
+    entity_registry: er.EntityRegistry,
+    device_registry: dr.DeviceRegistry,
+    area_registry: ar.AreaRegistry,
+    snapshot: SnapshotAssertion,
+) -> None:
+    """An object added in Designer appears under its module, in its app room."""
+    await setup_integration(hass, mock_config_entry)
+    assert hass.states.get(NEW_INPUT_ENTITY_ID) is None
+    mock_client.fetch_rooms.return_value = {**DEFAULT_ROOMS, NEW_INPUT_ID: "Taras"}
+
+    await _add(hass, mock_client, _new_input())
+
+    assert entity_registry.async_get(NEW_INPUT_ENTITY_ID) == snapshot
+    assert hass.states.get(NEW_INPUT_ENTITY_ID) == snapshot
+    child = _child(device_registry, mock_config_entry, NEW_INPUT_ID)
+    module = device_registry.async_get_device_by_identifier(
+        MSENS_IDENTIFIER, mock_config_entry.entry_id
+    )
+    assert child is not None
+    assert module is not None
+    assert child.parent_device_id == module.id
+    assert child.name == "Przycisk taras"
+    taras = area_registry.async_get_area_by_name("Taras")
+    assert taras is not None
+    assert child.area_id == taras.id
+    assert mock_client.fetch_rooms.await_count == 2
+
+
+async def test_new_module_row_gets_a_device_on_a_restricted_account(
+    hass: HomeAssistant,
+    mock_client: MagicMock,
+    mock_config_entry: MockConfigEntry,
+    device_registry: dr.DeviceRegistry,
+) -> None:
+    """A row the tree has not met yet gets its module device before its child."""
+    mock_client.modules = {}
+    mock_client.mserv = None
+    mock_client.access_tier = AccessTier.RESTRICTED
+    await setup_integration(hass, mock_config_entry)
+
+    await _add(
+        hass, mock_client, _new_input(id_urzadzenia=21, leaf_id="0_d009_wej_0_1")
+    )
+
+    hub = device_registry.async_get_device_by_identifier(
+        HUB_IDENTIFIER, mock_config_entry.entry_id
+    )
+    module = device_registry.async_get_device_by_identifier(
+        (DOMAIN, "module:21"), mock_config_entry.entry_id
+    )
+    child = _child(device_registry, mock_config_entry, NEW_INPUT_ID)
+    assert hub is not None
+    assert module is not None
+    assert child is not None
+    assert module.name == "Ampio module 0xD009"
+    assert module.via_device_id == hub.id
+    assert child.parent_device_id == module.id
+    assert hass.states.get(NEW_INPUT_ENTITY_ID).state == STATE_OFF
+
+
+async def test_one_batch_per_burst_of_events(
+    hass: HomeAssistant, mock_client: MagicMock, mock_config_entry: MockConfigEntry
+) -> None:
+    """The many events of one catalogue reply fold into one batch and one room fetch."""
+    await setup_integration(hass, mock_config_entry)
+
+    for offset in range(20):
+        obj = make_object(
+            300 + offset,
+            "wej",
+            7,
+            leaf_id=f"0_cb8f_wej_0_{20 + offset}",
+            funkcja=20 + offset,
+            state="0",
+        )
+        mock_client.objects[obj.id] = obj
+        emit(mock_client, ObjectAdded(object=obj))
+    await _settle(hass)
+
+    assert mock_client.fetch_rooms.await_count == 2
+    for offset in range(20):
+        state = hass.states.get(pinned_id("binary_sensor", 300 + offset))
+        assert state is not None
+        assert state.state == STATE_OFF
+
+
+async def test_state_push_schedules_no_batch(
+    hass: HomeAssistant, mock_client: MagicMock, mock_config_entry: MockConfigEntry
+) -> None:
+    """An update that changes no catalogue field reaches the entity and nothing else."""
+    await setup_integration(hass, mock_config_entry)
+
+    await _update(hass, mock_client, replace(mock_client.objects[146], state="1"))
+
+    assert hass.states.get(WEJ_ENTITY_ID).state == STATE_ON
+    mock_client.fetch_rooms.assert_awaited_once()
+
+
+async def test_removed_object_loses_its_entity_and_keeps_its_record(
+    hass: HomeAssistant,
+    mock_client: MagicMock,
+    mock_config_entry: MockConfigEntry,
+    entity_registry: er.EntityRegistry,
+) -> None:
+    """A row that drops out of the catalogue leaves a restored record, and a re-add restores the id."""
+    await setup_integration(hass, mock_config_entry)
+
+    obj = await _remove(hass, mock_client, 146)
+
+    state = hass.states.get(WEJ_ENTITY_ID)
+    assert state is not None
+    assert state.state == STATE_UNAVAILABLE
+    assert state.attributes[ATTR_RESTORED] is True
+    assert entity_registry.async_get(WEJ_ENTITY_ID) is not None
+
+    await _add(hass, mock_client, obj)
+
+    assert hass.states.get(WEJ_ENTITY_ID).state == STATE_OFF
+
+
+async def test_hidden_object_loses_its_entity_until_shown_again(
+    hass: HomeAssistant, mock_client: MagicMock, mock_config_entry: MockConfigEntry
+) -> None:
+    """On the admin tier a delete is the hidden bit, and an un-hide brings the entity back."""
+    await setup_integration(hass, mock_config_entry)
+    relay = mock_client.objects[74]
+
+    await _update(hass, mock_client, replace(relay, params=16))
+    assert hass.states.get(RELAY_SWITCH_ID).state == STATE_UNAVAILABLE
+
+    await _update(hass, mock_client, relay)
+    assert hass.states.get(RELAY_SWITCH_ID).state == STATE_ON
+
+
+async def test_retagged_relay_moves_from_switch_to_light(
+    hass: HomeAssistant, mock_client: MagicMock, mock_config_entry: MockConfigEntry
+) -> None:
+    """A Lighting tag set in Designer swaps the platform without a reload."""
+    await setup_integration(hass, mock_config_entry)
+    assert hass.states.get(RELAY_LIGHT_ID) is None
+
+    await _update(
+        hass, mock_client, replace(mock_client.objects[74], matter_device_type=0x0100)
+    )
+
+    assert hass.states.get(RELAY_SWITCH_ID).state == STATE_UNAVAILABLE
+    assert hass.states.get(RELAY_LIGHT_ID).state == STATE_ON
+
+
+async def test_pulse_time_adds_and_removes_the_diagnostic(
+    hass: HomeAssistant, mock_client: MagicMock, mock_config_entry: MockConfigEntry
+) -> None:
+    """The pulse sensor follows the Designer time on the object."""
+    await setup_integration(hass, mock_config_entry)
+    assert hass.states.get(RELAY_PULSE_ID) is None
+    relay = mock_client.objects[74]
+
+    await _update(hass, mock_client, replace(relay, czas=300))
+    assert hass.states.get(RELAY_PULSE_ID).state == "3.0"
+
+    await _update(hass, mock_client, relay)
+    assert hass.states.get(RELAY_PULSE_ID).state == STATE_UNAVAILABLE
+
+
+async def test_moved_object_is_removed_and_deletable(
+    hass: HomeAssistant,
+    mock_client: MagicMock,
+    mock_config_entry: MockConfigEntry,
+    device_registry: dr.DeviceRegistry,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A move in Designer removes the entities, warns once, and permits the delete."""
+    await setup_integration(hass, mock_config_entry)
+    child = _child(device_registry, mock_config_entry, 74)
+    assert child is not None
+
+    await _update(
+        hass,
+        mock_client,
+        replace(mock_client.objects[74], id_urzadzenia=3, leaf_id="0_be82_rel_0_1"),
+    )
+
+    assert hass.states.get(RELAY_SWITCH_ID).state == STATE_UNAVAILABLE
+    assert hass.states.get(RELAY_LIGHT_ID) is None
+    warnings = [
+        record
+        for record in caplog.records
+        if record.levelno == logging.WARNING
+        and "Object 74 moved" in record.getMessage()
+    ]
+    assert len(warnings) == 1
+    stuck = _child(device_registry, mock_config_entry, 74)
+    assert stuck is not None
+    assert stuck.id == child.id
+    assert await async_remove_config_entry_device(hass, mock_config_entry, stuck)
+
+
+async def test_room_fetch_failure_degrades_the_batch(
+    hass: HomeAssistant,
+    mock_client: MagicMock,
+    mock_config_entry: MockConfigEntry,
+    device_registry: dr.DeviceRegistry,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A failed room fetch costs the area seed and nothing else."""
+    await setup_integration(hass, mock_config_entry)
+    mock_client.fetch_rooms.side_effect = AmpioConnectionError("down")
+
+    await _add(hass, mock_client, _new_input())
+
+    assert hass.states.get(NEW_INPUT_ENTITY_ID).state == STATE_OFF
+    child = _child(device_registry, mock_config_entry, NEW_INPUT_ID)
+    assert child is not None
+    assert child.area_id is None
+    warnings = [
+        record
+        for record in caplog.records
+        if record.levelno == logging.WARNING and "room map" in record.getMessage()
+    ]
+    assert len(warnings) == 1
+
+
+async def test_unload_drops_the_subscription(
+    hass: HomeAssistant, mock_client: MagicMock, mock_config_entry: MockConfigEntry
+) -> None:
+    """After unload no listener is left for a late catalogue event."""
+    await setup_integration(hass, mock_config_entry)
+
+    await hass.config_entries.async_unload(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert mock_client.live_subscriptions == []

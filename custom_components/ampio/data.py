@@ -1,5 +1,6 @@
 """Runtime data for the Ampio integration: the device tree the catalogue defines."""
 
+import asyncio
 from collections import Counter
 from collections.abc import Callable, Iterable, Iterator
 from dataclasses import dataclass
@@ -12,11 +13,14 @@ from ampio_mqtt import (
     AmpioModule,
     AmpioObject,
     AmpioServerInfo,
+    ObjectRemoved,
+    ObjectUpdated,
 )
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers.debounce import Debouncer
 from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.entity_platform import (
     AddConfigEntryEntitiesCallback,
@@ -32,6 +36,45 @@ _LOGGER = logging.getLogger(__name__)
 # Designer database, which moves to new hardware with the project; the
 # server mac does not. One M-SERV per Home Assistant keeps them unique.
 HUB_IDENTIFIER: Final = (DOMAIN, "hub")
+
+# The M-SERV pushes the catalogue and the params table as separate messages
+# within one second of a Designer save, so a batch waits this long for both.
+RECONCILE_COOLDOWN: Final = 1.0
+
+type Fingerprint = tuple[str | None, int | None, int | None, int, int, int | None]
+
+
+def fingerprint(obj: AmpioObject) -> Fingerprint:
+    """The catalogue fields that decide an object's platforms and its parent.
+
+    A state push changes none of them, and neither does a rename, because
+    no name composes an id. The leaf id stays out: Designer clears it on a
+    Matter uncheck, and nothing in the partition or the tree reads it.
+    """
+    return (
+        obj.typ_komponentu,
+        obj.interpretacja,
+        obj.matter_device_type,
+        obj.params,
+        obj.czas,
+        obj.id_urzadzenia,
+    )
+
+
+def _built_entities(platform: EntityPlatform, object_key: str) -> dict[str, Entity]:
+    """The entities a platform holds for an object, keyed by unique id.
+
+    The unique id is the object key, or the object key and a suffix such as
+    ``_pulse``. The platform's own table is the truth for what is built, so
+    nothing shadows it.
+    """
+    prefix = f"{object_key}_"
+    return {
+        uid: entity
+        for entity in platform.entities.values()
+        if (uid := entity.unique_id) is not None
+        and (uid == object_key or uid.startswith(prefix))
+    }
 
 
 def module_identifier(module_id: int) -> tuple[str, str]:
@@ -118,6 +161,19 @@ class AmpioData:
         # The Designer row of the M-SERV itself. Its objects sit on the hub.
         self.mserv_id = mserv_id
         self._platforms: list[_PlatformRegistration] = []
+        # One fingerprint per object in the catalogue, eligible or not, so
+        # that a state push from any object costs one dictionary lookup.
+        self._fingerprints: dict[int, Fingerprint] = {}
+        # The object keys queued for the next batch, by object id.
+        self._pending: dict[int, str] = {}
+        self._reconcile_lock = asyncio.Lock()
+        self._debouncer = Debouncer(
+            hass,
+            _LOGGER,
+            cooldown=RECONCILE_COOLDOWN,
+            immediate=False,
+            function=self._async_schedule_reconcile,
+        )
 
     @classmethod
     async def async_create(
@@ -278,6 +334,97 @@ class AmpioData:
             (DOMAIN, obj.object_key), self.entry.entry_id
         )
         return child is not None and child.parent_device_id != self.parent_for(obj)
+
+    @callback
+    def async_subscribe(self) -> Callable[[], None]:
+        """Watch the catalogue, and return the callable that stops watching."""
+        for obj in self.client.objects.values():
+            self._fingerprints[obj.id] = fingerprint(obj)
+        unsubscribe = self.client.subscribe(
+            self._catalogue_event, of=(ObjectUpdated, ObjectRemoved)
+        )
+
+        @callback
+        def _stop() -> None:
+            unsubscribe()
+            self._debouncer.async_shutdown()
+
+        return _stop
+
+    @callback
+    def _catalogue_event(self, event: ObjectUpdated | ObjectRemoved) -> None:
+        """Queue an object whose catalogue row changed, and let a state push pass."""
+        obj = event.object
+        if isinstance(event, ObjectUpdated) and self._fingerprints.get(
+            obj.id
+        ) == fingerprint(obj):
+            return
+        self._pending[obj.id] = obj.object_key
+        self._debouncer.async_schedule_call()
+
+    @callback
+    def _async_schedule_reconcile(self) -> None:
+        """Run the batch as an entry task, so that an unload cancels it."""
+        self.entry.async_create_background_task(
+            self.hass, self._async_reconcile(), "ampio_reconcile"
+        )
+
+    async def _async_reconcile(self) -> None:
+        """Bring every pending object's entities in line with the catalogue.
+
+        One rule, expected versus built, covers a new object, a deletion, a
+        hide, an un-hide, a re-tag, a pulse time, and a move.
+        """
+        async with self._reconcile_lock:
+            pending, self._pending = self._pending, {}
+            if not pending:
+                return
+            buildable: list[AmpioObject] = []
+            for oid in pending:
+                obj = self.client.objects.get(oid)
+                if obj is None:
+                    self._fingerprints.pop(oid, None)
+                    continue
+                self._fingerprints[oid] = fingerprint(obj)
+                if obj.visible and not obj.is_system and not self._misparented(obj):
+                    buildable.append(obj)
+            # An entity reads the room map and the module device when it is
+            # built, so both precede the factories.
+            if buildable:
+                await self._async_refresh_rooms()
+                for obj in buildable:
+                    self.ensure_module_device(obj)
+            for registration in self._platforms:
+                to_add: list[Entity] = []
+                to_remove: list[Entity] = []
+                for oid, object_key in pending.items():
+                    built = _built_entities(registration.platform, object_key)
+                    expected = self._expected_entities(
+                        registration, self.client.objects.get(oid)
+                    )
+                    to_add.extend(
+                        entity for uid, entity in expected.items() if uid not in built
+                    )
+                    to_remove.extend(
+                        entity for uid, entity in built.items() if uid not in expected
+                    )
+                for entity in to_remove:
+                    # The registry record stays, so the stale repair lists it
+                    # and a re-add restores the id.
+                    await entity.async_remove()
+                if to_add:
+                    # Awaited, so that the platform's table holds the entities
+                    # before the batch ends.
+                    await registration.platform.async_add_entities(to_add)
+
+    async def _async_refresh_rooms(self) -> None:
+        """Re-read the room map, so that a new child takes its app room."""
+        try:
+            self.rooms = await self.client.fetch_rooms()
+        except AmpioConnectionError:
+            _LOGGER.warning(
+                "Could not fetch the Ampio room map; the new devices get no area suggestion"
+            )
 
     def parent_for(self, obj: AmpioObject) -> str:
         """The device an object's child hangs under: its module, or the hub.

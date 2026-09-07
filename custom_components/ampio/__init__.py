@@ -101,6 +101,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: AmpioConfigEntry) -> boo
 
     entry.runtime_data = await AmpioData.async_create(hass, entry, client, info)
 
+    # The subscription starts before the platforms load. An event that lands
+    # while a platform is still loading queues its id like any other, and a
+    # platform that registers later builds the new object in its own initial
+    # pass, so no window is left between the two.
+    entry.async_on_unload(entry.runtime_data.async_subscribe())
+
     # The description sweep fills each object's admin-guarded record bundle,
     # for the diagnostics download. It runs in the background, because the
     # M-SERV answers the requests one module at a time and the pass
