@@ -48,8 +48,11 @@ def fingerprint(obj: AmpioObject) -> Fingerprint:
     """The catalogue fields that decide an object's platforms and its parent.
 
     A state push changes none of them, and neither does a rename, because
-    no name composes an id. The leaf id stays out: Designer clears it on a
-    Matter uncheck, and nothing in the partition or the tree reads it.
+    no name composes an id. The leaf id stays out on purpose: Designer
+    clears it on a Matter uncheck, and that uncheck must move nothing. The
+    one leaf-derived fact the tree reads, ``is_server_owned`` in
+    ``parent_for``, is therefore left out as well, so a leaf change alone
+    queues no batch.
     """
     return (
         obj.typ_komponentu,
@@ -173,6 +176,7 @@ class AmpioData:
             cooldown=RECONCILE_COOLDOWN,
             immediate=False,
             function=self._async_schedule_reconcile,
+            background=True,
         )
         # The stale-record report, handed over once every platform loaded.
         # A batch that runs while a platform is still loading would report

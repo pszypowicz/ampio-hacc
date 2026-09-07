@@ -205,5 +205,6 @@ async def async_remove_config_entry_device(
                 for obj in eligible_objects(data.client):
                     if (DOMAIN, obj.object_key) == identifier:
                         data.async_request_reconcile(obj)
+                        break
                 return True
     return not any(identifier in live for identifier in device_entry.identifiers)
