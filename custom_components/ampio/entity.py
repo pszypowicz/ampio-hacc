@@ -1,8 +1,7 @@
 """Base entity for the Ampio integration."""
 
 import asyncio
-from collections.abc import Iterator, Mapping
-from typing import Final, override
+from typing import override
 
 from ampio_mqtt import (
     AmpioClient,
@@ -19,47 +18,6 @@ from homeassistant.helpers.entity_platform import EntityPlatform
 
 from .const import DOMAIN
 from .data import AmpioData
-
-
-def eligible_objects(client: AmpioClient) -> Iterator[AmpioObject]:
-    """The objects any platform may expose as entities.
-
-    ``visible`` is the M-SERV's own predicate for what the user still sees
-    in Ampio Designer: the hidden bit alone. A row without a ``leaf_id`` is
-    still an object, because Designer clears that field when an object's
-    Matter box is unchecked. ``is_system`` then holds back the M-SERV's
-    own detection and simulation objects, which no platform covers.
-    """
-    return (obj for obj in client.objects.values() if obj.visible and not obj.is_system)
-
-
-# The registry identifiers carry no server mac. Object ids live in the
-# Designer database, which moves to new hardware with the project; the
-# server mac does not. One M-SERV per Home Assistant keeps them unique.
-HUB_IDENTIFIER: Final = (DOMAIN, "hub")
-
-
-def module_identifier(module_id: int) -> tuple[str, str]:
-    """The registry identifier of the module device for Designer row ``module_id``."""
-    return (DOMAIN, f"module:{module_id}")
-
-
-def resolve_parent(
-    obj: AmpioObject,
-    hub_device_id: str,
-    module_device_ids: Mapping[int, str],
-    mserv_id: int | None,
-) -> str:
-    """The device an object's child hangs under: its module, or the hub.
-
-    The Designer module row id rides every object row on both account
-    tiers, leaf or no leaf, so the tree never depends on the leaf id. The
-    M-SERV's own objects sit on the hub.
-    """
-    module_id = obj.id_urzadzenia
-    if obj.is_server_owned or module_id is None or module_id == mserv_id:
-        return hub_device_id
-    return module_device_ids.get(module_id, hub_device_id)
 
 
 async def async_turn_on_honoring_pulse(
@@ -105,9 +63,7 @@ class AmpioEntity(Entity):
         # An object is a channel of its module, and its child device hangs
         # under that module. The registry cannot re-parent a child, so a
         # move in Designer needs a delete, which the removal hook permits.
-        parent = resolve_parent(
-            obj, data.hub_device_id, data.module_device_ids, data.mserv_id
-        )
+        parent = data.parent_for(obj)
         device_info = ChildDeviceInfo(
             identifiers={(DOMAIN, obj.object_key)}, parent_device_id=parent
         )

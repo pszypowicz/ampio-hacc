@@ -13,32 +13,7 @@ from homeassistant.helpers import (
 )
 
 from .const import DOMAIN, STALE_RECORDS_ISSUE
-from .data import AmpioConfigEntry, AmpioData
-from .entity import HUB_IDENTIFIER, eligible_objects, module_identifier, resolve_parent
-
-
-@callback
-def live_identifiers(
-    data: AmpioData,
-) -> tuple[set[tuple[str, str]], dict[tuple[str, str], str]]:
-    """The device identifiers the catalogue keeps, and each child's parent.
-
-    The hub is always live. A module device is live while an eligible object
-    resolves to it, and an object's child is live while the object is
-    eligible. The parent map says where each child belongs now, which is
-    what a moved object's stuck child is compared against.
-    """
-    live: set[tuple[str, str]] = {HUB_IDENTIFIER}
-    expected_parent: dict[tuple[str, str], str] = {}
-    for obj in eligible_objects(data.client):
-        parent = resolve_parent(
-            obj, data.hub_device_id, data.module_device_ids, data.mserv_id
-        )
-        if parent != data.hub_device_id and obj.id_urzadzenia is not None:
-            live.add(module_identifier(obj.id_urzadzenia))
-        live.add((DOMAIN, obj.object_key))
-        expected_parent[(DOMAIN, obj.object_key)] = parent
-    return live, expected_parent
+from .data import AmpioConfigEntry
 
 
 @dataclass(frozen=True)
@@ -104,7 +79,7 @@ def find_stale_records(hass: HomeAssistant, entry: AmpioConfigEntry) -> StaleRec
         if all(entity.entity_id in stale_entities for entity in entities):
             devices.append(child)
             covered.update(entity.entity_id for entity in entities)
-    live, _ = live_identifiers(entry.runtime_data)
+    live, _ = entry.runtime_data.live_identifiers()
     devices.extend(
         device
         for device in dr.async_entries_for_config_entry(device_registry, entry.entry_id)

@@ -13,8 +13,8 @@ from homeassistant.components.light import (
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
-from .data import AmpioConfigEntry, AmpioData
-from .entity import AmpioEntity, async_turn_on_honoring_pulse, eligible_objects
+from .data import AmpioConfigEntry, AmpioData, eligible_objects
+from .entity import AmpioEntity, async_turn_on_honoring_pulse
 
 PARALLEL_UPDATES = 0
 

@@ -10,8 +10,8 @@ from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .const import DOMAIN
-from .data import AmpioConfigEntry, AmpioData
-from .entity import AmpioEntity, async_turn_on_honoring_pulse, eligible_objects
+from .data import AmpioConfigEntry, AmpioData, eligible_objects
+from .entity import AmpioEntity, async_turn_on_honoring_pulse
 from .light import LIGHT_MATTER_TYPES
 
 PARALLEL_UPDATES = 0

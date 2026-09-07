@@ -27,9 +27,14 @@ from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr, issue_registry as ir
 
 from .const import DOMAIN, PLATFORMS, STALE_RECORDS_ISSUE
-from .data import AmpioConfigEntry, AmpioData
-from .entity import HUB_IDENTIFIER, eligible_objects, module_identifier
-from .stale import async_report_stale_records, live_identifiers
+from .data import (
+    HUB_IDENTIFIER,
+    AmpioConfigEntry,
+    AmpioData,
+    eligible_objects,
+    module_identifier,
+)
+from .stale import async_report_stale_records
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -288,7 +293,7 @@ async def async_remove_config_entry_device(
     delete is how the user moves it, and the next reload builds it again
     under the resolved parent with its id, its area, and its name restored.
     """
-    live, expected_parent = live_identifiers(entry.runtime_data)
+    live, expected_parent = entry.runtime_data.live_identifiers()
     if isinstance(device_entry, dr.ChildDeviceEntry):
         # The registry cannot move a child, so a child whose object now
         # resolves elsewhere is deletable: the delete is the move.

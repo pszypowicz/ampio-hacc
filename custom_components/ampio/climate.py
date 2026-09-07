@@ -14,8 +14,8 @@ from homeassistant.const import ATTR_TEMPERATURE, UnitOfTemperature
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
-from .data import AmpioConfigEntry
-from .entity import AmpioEntity, eligible_objects
+from .data import AmpioConfigEntry, eligible_objects
+from .entity import AmpioEntity
 
 PARALLEL_UPDATES = 0
 

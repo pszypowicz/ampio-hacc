@@ -24,8 +24,8 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .button import is_button
-from .data import AmpioConfigEntry, AmpioData
-from .entity import AmpioEntity, eligible_objects
+from .data import AmpioConfigEntry, AmpioData, eligible_objects
+from .entity import AmpioEntity
 from .light import is_light
 from .switch import is_switch
 
