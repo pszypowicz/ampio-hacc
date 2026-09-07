@@ -20,7 +20,7 @@ from pytest_homeassistant_custom_component.common import (
 from syrupy.assertion import SnapshotAssertion
 
 from custom_components.ampio.const import DOMAIN
-from custom_components.ampio.sensor import SENSOR_DESCRIPTIONS
+from custom_components.ampio.sensor import SENSOR_DESCRIPTIONS, VALUE_KEY_PREFIX
 from homeassistant.const import (
     STATE_UNAVAILABLE,
     STATE_UNKNOWN,
@@ -44,6 +44,9 @@ from .conftest import (
 TEMPERATURE_ENTITY_ID = pinned_id("sensor", 36)
 HUMIDITY_ENTITY_ID = pinned_id("sensor", 37)
 CO2_ENTITY_ID = pinned_id("sensor", 43)
+CURRENT_ENTITY_ID = pinned_id("sensor", 160)
+ENERGY_ENTITY_ID = pinned_id("sensor", 161)
+COUNTER_ENTITY_ID = pinned_id("sensor", 162)
 
 
 @pytest.fixture(autouse=True)
@@ -66,11 +69,13 @@ async def _push_value(
 def test_sensor_kind_vocabulary_is_mapped_or_excluded() -> None:
     """A library upgrade that adds a kind fails here instead of dropping entities.
 
-    The metadata-less generic "value" kind and the open key families are
-    deliberately not exposed; a new key or prefix forces a mapping decision.
+    The metadata-less generic "value" kind is deliberately not exposed. Of
+    the two open key families, the integer slots (``value_``) map to the
+    value sensor and the unknown analog inputs (``analog_``) stay excluded;
+    a new key or prefix forces a mapping decision.
     """
     assert SENSOR_KIND_KEYS - {"value"} == SENSOR_DESCRIPTIONS.keys()
-    assert set(SENSOR_KIND_KEY_PREFIXES) == {"analog_", "value_"}
+    assert set(SENSOR_KIND_KEY_PREFIXES) - {VALUE_KEY_PREFIX} == {"analog_"}
 
 
 @pytest.mark.usefixtures("mock_client")
@@ -130,6 +135,75 @@ async def test_unusable_value_surfaces_as_unknown(
     await _push_value(hass, mock_client, 36, "INVALID")
 
     assert hass.states.get(TEMPERATURE_ENTITY_ID).state == STATE_UNKNOWN
+
+
+@pytest.mark.usefixtures("mock_client")
+async def test_value_sensor_reads_the_designer_unit(
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    entity_registry: er.EntityRegistry,
+) -> None:
+    """An integer slot carries the unit, class, state class, and precision Designer stores."""
+    await setup_integration(hass, mock_config_entry)
+
+    current = hass.states.get(CURRENT_ENTITY_ID)
+    assert current is not None
+    assert current.state == "0.37"
+    assert current.attributes["unit_of_measurement"] == "A"
+    assert current.attributes["device_class"] == "current"
+    assert current.attributes["state_class"] == "measurement"
+    entry = entity_registry.async_get(CURRENT_ENTITY_ID)
+    assert entry is not None
+    assert entry.options["sensor"]["suggested_display_precision"] == 3
+
+    energy = hass.states.get(ENERGY_ENTITY_ID)
+    assert energy is not None
+    assert energy.attributes["unit_of_measurement"] == "kWh"
+    assert energy.attributes["device_class"] == "energy"
+    assert energy.attributes["state_class"] == "total_increasing"
+
+
+@pytest.mark.usefixtures("mock_client")
+async def test_value_sensor_without_unit_is_a_bare_measurement(
+    hass: HomeAssistant, mock_config_entry: MockConfigEntry
+) -> None:
+    """A slot with neither a Unit field nor a format tail keeps its value and nothing else."""
+    await setup_integration(hass, mock_config_entry)
+
+    counter = hass.states.get(COUNTER_ENTITY_ID)
+    assert counter is not None
+    assert counter.state == "42"
+    assert "unit_of_measurement" not in counter.attributes
+    assert "device_class" not in counter.attributes
+    assert counter.attributes["state_class"] == "measurement"
+
+
+async def test_value_sensor_follows_a_unit_change(
+    hass: HomeAssistant, mock_client: MagicMock, mock_config_entry: MockConfigEntry
+) -> None:
+    """A Designer edit of the unit re-classifies the entity on its next write."""
+    await setup_integration(hass, mock_config_entry)
+
+    obj = replace(mock_client.objects[162], url="V")
+    mock_client.objects[162] = obj
+    emit(mock_client, ObjectUpdated(object=obj))
+    await hass.async_block_till_done()
+
+    counter = hass.states.get(COUNTER_ENTITY_ID)
+    assert counter is not None
+    assert counter.attributes["unit_of_measurement"] == "V"
+    assert counter.attributes["device_class"] == "voltage"
+
+
+async def test_value_sensor_non_numeric_push_reads_unknown(
+    hass: HomeAssistant, mock_client: MagicMock, mock_config_entry: MockConfigEntry
+) -> None:
+    """A push the slot cannot represent as a number maps to unknown, not an error."""
+    await setup_integration(hass, mock_config_entry)
+
+    await _push_value(hass, mock_client, 160, "INVALID")
+
+    assert hass.states.get(CURRENT_ENTITY_ID).state == STATE_UNKNOWN
 
 
 async def test_push_only_updates_target_entity(
@@ -260,7 +334,7 @@ async def test_unexposable_objects_are_skipped(
     entities = er.async_entries_for_config_entry(
         entity_registry, mock_config_entry.entry_id
     )
-    assert len(entities) == 10
+    assert len(entities) == 13
 
 
 @pytest.mark.parametrize(

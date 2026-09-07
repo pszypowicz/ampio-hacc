@@ -193,7 +193,7 @@ async def test_restricted_account_groups_by_module_row(
     entities = er.async_entries_for_config_entry(
         entity_registry, mock_config_entry.entry_id
     )
-    assert len(entities) == 26
+    assert len(entities) == 29
     # The tree is three deep. Scenes sit on the hub. Every object sits on
     # a child device of its own, under its module, or under the hub for a
     # server-owned object. The tier changes no parent and no identifier.
