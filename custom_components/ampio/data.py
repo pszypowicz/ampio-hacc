@@ -110,6 +110,19 @@ class _PlatformRegistration:
     factory: EntityFactory
 
 
+# What a platform builds for one module device: the entities, or nothing.
+# The int is the Designer module row id that keys ``module_device_ids``.
+type ModuleEntityFactory = Callable[[AmpioData, int], Iterable[Entity]]
+
+
+@dataclass(frozen=True)
+class _ModulePlatformRegistration:
+    """One platform's module factory, and the platform that holds what it built."""
+
+    platform: EntityPlatform
+    factory: ModuleEntityFactory
+
+
 def _opt_str(value: object | None) -> str | None:
     """Stringify a catalogue field, passing None through."""
     return None if value is None else str(value)
@@ -123,7 +136,7 @@ def _module_name(module: AmpioModule | None, mac: int | None, module_id: int) ->
     administrator login alone. A restricted account is served the
     leaf-embedded mac instead, and a module whose objects all lost their
     leaf is left with its Designer row id. So this name follows the account
-    tier. Nothing depends on it: ``AmpioEntity`` pins the entity id, so a
+    tier. Nothing depends on it: ``AmpioPinnedEntity`` pins the entity id, so a
     name that changes on a tier switch renames the device in the interface
     and moves no id.
     """
@@ -164,6 +177,7 @@ class AmpioData:
         # The Designer row of the M-SERV itself. Its objects sit on the hub.
         self.mserv_id = mserv_id
         self._platforms: list[_PlatformRegistration] = []
+        self._module_platforms: list[_ModulePlatformRegistration] = []
         # One fingerprint per object in the catalogue, eligible or not, so
         # that a state push from any object costs one dictionary lookup.
         self._fingerprints: dict[int, Fingerprint] = {}
@@ -259,8 +273,12 @@ class AmpioData:
         return data
 
     @callback
-    def ensure_module_device(self, obj: AmpioObject) -> None:
+    def ensure_module_device(self, obj: AmpioObject) -> int | None:
         """Create the module device of the object's row, unless it exists.
+
+        Returns the row id when this call put the row into the tree, which
+        is when the module platforms owe the row their entities, and None
+        when the row needs no device or already has one.
 
         The row id rides every object on both account tiers, so the tree
         holds still across a tier change. The admin catalogue names the
@@ -278,7 +296,7 @@ class AmpioData:
             or module_id == self.mserv_id
             or module_id in self.module_device_ids
         ):
-            return
+            return None
         module = self.client.module_for(obj)
         device = dr.async_get(self.hass).async_get_or_create(
             config_entry_id=self.entry.entry_id,
@@ -292,6 +310,7 @@ class AmpioData:
             serial_number=_opt_str(module.mac_global) if module else None,
         )
         self.module_device_ids[module_id] = device.id
+        return module_id
 
     @callback
     def async_add_platform(
@@ -307,6 +326,27 @@ class AmpioData:
         entities: list[Entity] = []
         for obj in eligible_objects(self.client):
             entities.extend(self._expected_entities(registration, obj).values())
+        async_add_entities(entities)
+
+    @callback
+    def async_add_module_platform(
+        self,
+        factory: ModuleEntityFactory,
+        async_add_entities: AddConfigEntryEntitiesCallback,
+    ) -> None:
+        """Register a module factory, and build its entities for every module device.
+
+        Valid inside the platform's ``async_setup_entry`` alone, where Home
+        Assistant sets the current platform. A module device the tree meets
+        later is built through the platform recorded here.
+        """
+        registration = _ModulePlatformRegistration(
+            async_get_current_platform(), factory
+        )
+        self._module_platforms.append(registration)
+        entities: list[Entity] = []
+        for module_id in self.module_device_ids:
+            entities.extend(factory(self, module_id))
         async_add_entities(entities)
 
     def _expected_entities(
@@ -414,10 +454,14 @@ class AmpioData:
                     buildable.append(obj)
             # An entity reads the room map and the module device when it is
             # built, so both precede the factories.
+            new_rows: list[int] = []
             if buildable:
                 await self._async_refresh_rooms()
-                for obj in buildable:
-                    self.ensure_module_device(obj)
+                new_rows.extend(
+                    row
+                    for obj in buildable
+                    if (row := self.ensure_module_device(obj)) is not None
+                )
             for registration in self._platforms:
                 to_add: list[Entity] = []
                 to_remove: list[Entity] = []
@@ -440,6 +484,18 @@ class AmpioData:
                     # Awaited, so that the platform's table holds the entities
                     # before the batch ends.
                     await registration.platform.async_add_entities(to_add)
+            # A module device the batch created owes the module platforms
+            # their entities, awaited for the same reason as the objects.
+            for module_registration in self._module_platforms:
+                module_entities = [
+                    entity
+                    for row in new_rows
+                    for entity in module_registration.factory(self, row)
+                ]
+                if module_entities:
+                    await module_registration.platform.async_add_entities(
+                        module_entities
+                    )
             if self._report is not None:
                 self._report()
 

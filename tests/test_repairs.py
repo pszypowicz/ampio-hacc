@@ -219,7 +219,9 @@ async def test_fix_flow_removes_a_module_without_objects(
 
     issue = issue_registry.async_get_issue(DOMAIN, ISSUE_ID)
     assert issue is not None
-    assert "- m-sens salon\n" in issue.translation_placeholders["names"]
+    names = issue.translation_placeholders["names"]
+    assert "- m-sens salon\n" in names
+    assert "Identify" not in names
 
     client = await hass_client()
     flow = await (

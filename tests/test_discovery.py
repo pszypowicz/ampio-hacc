@@ -4,7 +4,7 @@ from dataclasses import replace
 from datetime import timedelta
 import logging
 from typing import Any
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from ampio_mqtt import (
     AccessTier,
@@ -23,6 +23,7 @@ from syrupy.assertion import SnapshotAssertion
 
 from custom_components.ampio import async_remove_config_entry_device
 from custom_components.ampio.const import DOMAIN
+from custom_components.ampio.data import AmpioData
 from homeassistant.const import ATTR_RESTORED, STATE_OFF, STATE_ON, STATE_UNAVAILABLE
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import (
@@ -31,6 +32,8 @@ from homeassistant.helpers import (
     entity_registry as er,
     issue_registry as ir,
 )
+from homeassistant.helpers.entity import Entity
+from homeassistant.helpers.entity_platform import EntityPlatform
 from homeassistant.util import dt as dt_util
 
 from . import setup_integration
@@ -444,3 +447,43 @@ async def test_deleting_a_moved_child_brings_it_back_under_the_new_module(
     assert moved.name_by_user == "Przekaznik piwnica"
     assert moved.area_id == piwnica.id
     assert hass.states.get(RELAY_SWITCH_ID).state == STATE_ON
+
+
+async def test_module_factory_builds_now_and_for_a_new_row(
+    hass: HomeAssistant, mock_client: MagicMock, mock_config_entry: MockConfigEntry
+) -> None:
+    """A module factory runs once per module device: at registration, then per new row.
+
+    The default catalogue puts every module-owned object on row 17, so the
+    registration builds for that row alone. A row the tree meets in a later
+    batch is built through the platform the factory was registered on.
+    """
+    await setup_integration(hass, mock_config_entry)
+    data: AmpioData = mock_config_entry.runtime_data
+    platform = MagicMock(spec=EntityPlatform)
+    platform.async_add_entities = AsyncMock()
+    built: list[int] = []
+
+    def factory(_data: AmpioData, module_id: int) -> list[Entity]:
+        built.append(module_id)
+        return [MagicMock(spec=Entity)]
+
+    async_add_entities = MagicMock()
+    with patch(
+        "custom_components.ampio.data.async_get_current_platform",
+        return_value=platform,
+    ):
+        data.async_add_module_platform(factory, async_add_entities)
+
+    assert built == [17]
+    async_add_entities.assert_called_once()
+    assert len(async_add_entities.call_args.args[0]) == 1
+    assert data.ensure_module_device(mock_client.objects[36]) is None
+
+    await _add(
+        hass, mock_client, _new_input(id_urzadzenia=21, leaf_id="0_d009_wej_0_1")
+    )
+
+    assert built == [17, 21]
+    platform.async_add_entities.assert_awaited_once()
+    assert len(platform.async_add_entities.call_args.args[0]) == 1

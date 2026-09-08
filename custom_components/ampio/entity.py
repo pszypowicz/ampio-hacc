@@ -36,11 +36,41 @@ async def async_turn_on_honoring_pulse(
         await client.turn_on(object_id)
 
 
-class AmpioEntity(Entity):
-    """Entity backed by one Ampio object."""
+class AmpioPinnedEntity(Entity):
+    """Entity whose id is pinned to its unique id, so that no name composes it."""
 
     _attr_has_entity_name = True
     _attr_should_poll = False
+    # The unique id, and the object part of the pinned entity id. A subclass
+    # sets it before the add, and sets ``_attr_unique_id`` to the same string.
+    _key: str
+
+    @override
+    def add_to_platform_start(
+        self,
+        hass: HomeAssistant,
+        platform: EntityPlatform,
+        parallel_updates: asyncio.Semaphore | None,
+    ) -> None:
+        """Pin the entity id, so that no name composes one.
+
+        Home Assistant builds an entity id from the area name, the device
+        name, and the entity name, once, at first registration. An entity
+        that carries an ``entity_id`` into the add is exempt: the platform
+        stores the object part as the registry's ``suggested_object_id``,
+        and the composition then skips every name part. The module device
+        is therefore free to take its administrator-tier name, which the
+        restricted tier is not served, without moving an id.
+
+        The pinned id is the unique id with the domain in front, so the two
+        identities are one string and cannot drift apart.
+        """
+        super().add_to_platform_start(hass, platform, parallel_updates)
+        self.entity_id = f"{platform.domain}.ampio_{self._key}"
+
+
+class AmpioEntity(AmpioPinnedEntity):
+    """Entity backed by one Ampio object."""
 
     def __init__(
         self, data: AmpioData, obj: AmpioObject, *, key_suffix: str = ""
@@ -83,29 +113,6 @@ class AmpioEntity(Entity):
         if (room := data.rooms.get(obj.id)) is not None:
             device_info["suggested_area"] = room
         self._attr_device_info = device_info
-
-    @override
-    def add_to_platform_start(
-        self,
-        hass: HomeAssistant,
-        platform: EntityPlatform,
-        parallel_updates: asyncio.Semaphore | None,
-    ) -> None:
-        """Pin the entity id, so that no name composes one.
-
-        Home Assistant builds an entity id from the area name, the device
-        name, and the entity name, once, at first registration. An entity
-        that carries an ``entity_id`` into the add is exempt: the platform
-        stores the object part as the registry's ``suggested_object_id``,
-        and the composition then skips every name part. The module device
-        is therefore free to take its administrator-tier name, which the
-        restricted tier is not served, without moving an id.
-
-        The pinned id is the unique id with the domain in front, so the two
-        identities are one string and cannot drift apart.
-        """
-        super().add_to_platform_start(hass, platform, parallel_updates)
-        self.entity_id = f"{platform.domain}.ampio_{self._key}"
 
     @override
     async def async_added_to_hass(self) -> None:

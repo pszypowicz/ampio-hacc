@@ -51,9 +51,10 @@ def find_stale_records(hass: HomeAssistant, entry: AmpioConfigEntry) -> StaleRec
     An entity record is stale when it is enabled and no loaded platform
     holds an entity under its id. A child device is stale when every
     entity on it is stale, a device without entities included. A module
-    device is stale when no eligible object resolves to it. A disabled
-    entity is skipped by its platform on purpose, so it and its device are
-    never stale.
+    device is stale when no eligible object resolves to it, and its
+    entities are covered by the device rather than listed on their own. A
+    disabled entity is skipped by its platform on purpose, so it and its
+    device are never stale.
     """
     claimed = {
         entity_id
@@ -80,11 +81,16 @@ def find_stale_records(hass: HomeAssistant, entry: AmpioConfigEntry) -> StaleRec
             devices.append(child)
             covered.update(entity.entity_id for entity in entities)
     live, _ = entry.runtime_data.live_identifiers()
-    devices.extend(
-        device
-        for device in dr.async_entries_for_config_entry(device_registry, entry.entry_id)
-        if not device.identifiers & live
-    )
+    for device in dr.async_entries_for_config_entry(device_registry, entry.entry_id):
+        if device.identifiers & live:
+            continue
+        devices.append(device)
+        covered.update(
+            entity.entity_id
+            for entity in er.async_entries_for_device(
+                entity_registry, device.id, include_disabled_entities=True
+            )
+        )
     entities = [
         entity
         for entity_id, entity in stale_entities.items()
