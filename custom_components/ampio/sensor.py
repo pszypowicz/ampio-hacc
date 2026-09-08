@@ -194,17 +194,10 @@ class AmpioValueSensor(AmpioEntity, SensorEntity):
     @property
     @override
     def native_value(self) -> float | None:
-        """The current reading, or None when missing or non-numeric.
-
-        A whole-number reading returns as a bare int: ``numeric_value`` is
-        always a float, and Home Assistant renders a float with no
-        fractional part with a trailing ".0" a bit16 counter should not
-        carry.
-        """
+        """The current reading, or None when missing or non-numeric."""
         if (obj := self._object) is None:
             return None
-        value = obj.numeric_value
-        return int(value) if value is not None and value.is_integer() else value
+        return obj.numeric_value
 
     @property
     @override

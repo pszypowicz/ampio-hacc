@@ -281,7 +281,7 @@
     'last_changed': <ANY>,
     'last_reported': <ANY>,
     'last_updated': <ANY>,
-    'state': '42',
+    'state': '42.0',
   })
 # ---
 # name: test_all_entities[sensor.ampio_obj_36-entry]

@@ -172,7 +172,7 @@ async def test_value_sensor_without_unit_is_a_bare_measurement(
 
     counter = hass.states.get(COUNTER_ENTITY_ID)
     assert counter is not None
-    assert counter.state == "42"
+    assert counter.state == "42.0"
     assert "unit_of_measurement" not in counter.attributes
     assert "device_class" not in counter.attributes
     assert counter.attributes["state_class"] == "measurement"
