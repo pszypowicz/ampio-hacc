@@ -75,6 +75,7 @@ def test_sensor_kind_vocabulary_is_mapped_or_excluded() -> None:
     a new key or prefix forces a mapping decision.
     """
     assert SENSOR_KIND_KEYS - {"value"} == SENSOR_DESCRIPTIONS.keys()
+    assert VALUE_KEY_PREFIX in SENSOR_KIND_KEY_PREFIXES
     assert set(SENSOR_KIND_KEY_PREFIXES) - {VALUE_KEY_PREFIX} == {"analog_"}
 
 

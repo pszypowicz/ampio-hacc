@@ -7,11 +7,8 @@ from custom_components.ampio.units import (
     device_class_for,
     state_class_for,
 )
-from homeassistant.components.sensor import (
-    DEVICE_CLASS_UNITS,
-    SensorDeviceClass,
-    SensorStateClass,
-)
+from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
+from homeassistant.components.sensor.const import DEVICE_CLASS_UNITS
 
 
 @pytest.mark.parametrize(
@@ -40,7 +37,8 @@ def test_override_keys_are_ambiguous_in_core() -> None:
     """An override exists only where core lists the unit under two classes.
 
     A core release that settles one turns the override into dead weight,
-    and this test then asks for its removal.
+    and this test then asks for its removal. The chosen class must also
+    still own the unit, or core would reject the pairing.
     """
     for unit in UNIT_DEVICE_CLASS_OVERRIDES:
         owners = {
@@ -49,6 +47,7 @@ def test_override_keys_are_ambiguous_in_core() -> None:
             if unit in units
         }
         assert len(owners) > 1, unit
+        assert UNIT_DEVICE_CLASS_OVERRIDES[unit] in owners, unit
 
 
 @pytest.mark.parametrize(

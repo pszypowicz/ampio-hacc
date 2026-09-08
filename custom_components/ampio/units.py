@@ -4,10 +4,10 @@ from typing import Final
 
 from homeassistant.components.sensor import (
     DEVICE_CLASS_STATE_CLASSES,
-    DEVICE_CLASS_UNITS,
     SensorDeviceClass,
     SensorStateClass,
 )
+from homeassistant.components.sensor.const import DEVICE_CLASS_UNITS
 from homeassistant.const import UnitOfEnergy, UnitOfPressure, UnitOfTemperature
 
 # Units that core lists under two device classes, settled for the class a

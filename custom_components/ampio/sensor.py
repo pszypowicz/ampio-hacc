@@ -186,9 +186,10 @@ class AmpioValueSensor(AmpioEntity, SensorEntity):
     """An integer sensor slot: a bit 8, bit 16, sbit 16, or bit 32 object.
 
     The kind fixes no unit, so every property reads what Designer stores on
-    the object, and a catalogue push re-classifies the entity on its next
-    write. The M-SERV applies Designer's "Divide by" before it publishes,
-    so the value is served as is.
+    the object. A catalogue push re-classifies the entity's state on its
+    next write; the registry's device class and precision follow on the
+    next reload. The M-SERV applies Designer's "Divide by" before it
+    publishes, so the value is served as is.
     """
 
     @property
