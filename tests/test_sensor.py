@@ -164,10 +164,10 @@ async def test_value_sensor_reads_the_designer_unit(
 
 
 @pytest.mark.usefixtures("mock_client")
-async def test_value_sensor_without_unit_is_a_bare_measurement(
+async def test_value_sensor_without_unit_is_a_plain_number(
     hass: HomeAssistant, mock_config_entry: MockConfigEntry
 ) -> None:
-    """A slot with neither a Unit field nor a format tail keeps its value and nothing else."""
+    """A slot with neither a Unit field nor a format tail keeps its value and no state class."""
     await setup_integration(hass, mock_config_entry)
 
     counter = hass.states.get(COUNTER_ENTITY_ID)
@@ -175,7 +175,7 @@ async def test_value_sensor_without_unit_is_a_bare_measurement(
     assert counter.state == "42.0"
     assert "unit_of_measurement" not in counter.attributes
     assert "device_class" not in counter.attributes
-    assert counter.attributes["state_class"] == "measurement"
+    assert "state_class" not in counter.attributes
 
 
 async def test_value_sensor_follows_a_unit_change(
@@ -193,6 +193,7 @@ async def test_value_sensor_follows_a_unit_change(
     assert counter is not None
     assert counter.attributes["unit_of_measurement"] == "V"
     assert counter.attributes["device_class"] == "voltage"
+    assert counter.attributes["state_class"] == "measurement"
 
 
 async def test_value_sensor_non_numeric_push_reads_unknown(

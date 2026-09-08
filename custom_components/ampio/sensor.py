@@ -216,7 +216,14 @@ class AmpioValueSensor(AmpioEntity, SensorEntity):
     @property
     @override
     def state_class(self) -> SensorStateClass | None:
-        """A measurement, or a running total for an energy-like unit."""
+        """A measurement or a running total once Designer gives the slot a unit.
+
+        Without a unit the slot is a plain number, and it keeps no
+        long-term statistics: a Modbus register without a unit is as often
+        a status word as a reading.
+        """
+        if self.native_unit_of_measurement is None:
+            return None
         return state_class_for(self.device_class)
 
     @property
