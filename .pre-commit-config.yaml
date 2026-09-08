@@ -1,0 +1,59 @@
+# Every gate that protects main lives here. The same hooks run on each local
+# commit and in the pre-commit job of .github/workflows/ci.yaml.
+#
+# The mypy and pytest hooks start their tool with `uv run`, which finds the
+# gate venv at .venv in the checkout or in a parent directory, or the
+# environment that VIRTUAL_ENV names. docs/development.md shows how to build it.
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-added-large-files
+      - id: check-case-conflict
+      - id: check-json
+      - id: check-merge-conflict
+      - id: check-toml
+      - id: check-yaml
+      - id: end-of-file-fixer
+      - id: mixed-line-ending
+        args: [--fix=lf]
+      - id: trailing-whitespace
+        args: [--markdown-linebreak-ext=md]
+
+  - repo: https://github.com/python-jsonschema/check-jsonschema
+    rev: 0.38.0
+    hooks:
+      - id: check-github-workflows
+
+  - repo: https://github.com/codespell-project/codespell
+    rev: v2.4.3
+    hooks:
+      - id: codespell
+
+  - repo: https://github.com/betterleaks/betterleaks
+    rev: v1.8.1
+    hooks:
+      - id: betterleaks
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.3
+    hooks:
+      - id: ruff-check
+        args: [--fix, --exit-non-zero-on-fix]
+      - id: ruff-format
+        types_or: [python, pyi]
+
+  - repo: local
+    hooks:
+      - id: mypy
+        name: mypy --strict
+        entry: uv run --no-project python -m mypy --strict --ignore-missing-imports custom_components/ampio
+        language: system
+        types_or: [python, pyi]
+        pass_filenames: false
+      - id: pytest
+        name: pytest
+        entry: uv run --no-project python -m pytest tests/ -q
+        language: system
+        pass_filenames: false
+        always_run: true
