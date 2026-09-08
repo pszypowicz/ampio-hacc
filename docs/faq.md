@@ -1,0 +1,110 @@
+# Frequently asked questions
+
+If something looks wrong after an update or after a change in Ampio Designer, find the symptom below. Each answer tells you how to check whether it affects you, and how to fix it.
+
+## Back up first
+
+Do not start a procedure on this page without a backup. Some of them delete records that Home Assistant cannot rebuild from the Ampio server.
+
+1. Open Settings, then System, then Backups.
+2. Select "Create backup".
+3. Wait for the backup to finish.
+
+## Entities are missing or stay unavailable after an update
+
+**Check:** Open Settings, then Devices and services, then Ampio. Compare the entity count with what you had. An entity with the state `unavailable` or the label "restored" is one the integration no longer builds.
+
+**Fix:** Remove the Ampio integration entry, then add it again. Home Assistant remembers a removed entity for 30 days, so the re-add restores your entity ids, your renames, and your areas. That is the supported first step, not a last resort. If the entity count is still wrong afterwards, download the diagnostics as described in [debugging.md](debugging.md) and report it in the issues.
+
+## An entity is listed that Ampio Designer no longer has
+
+**Check:** Such an entity shows the state `unavailable` or the label "restored". After each start or reload the integration raises one repair on the Settings page, under Repairs. The repair lists every device and entity that the integration did not build on that start.
+
+**Fix:** Select Submit on the repair to delete them all at once. The integration then reloads. An object that you moved to another module in Ampio Designer comes back under its new module.
+
+The repair never deletes on its own. On an account that is not the administrator one, an object that lost its app permission looks the same as a deleted object. Read the list before you submit.
+
+To delete a single record by hand instead:
+
+1. Open Settings, then Devices and services, then Entities.
+2. Search for the entity.
+3. Select it, then select the cog icon.
+4. Select "Delete".
+
+If the "Delete" button is not offered, the integration still creates that entity. Check Ampio Designer before you go further.
+
+## My entity ids look different from the ones in the docs
+
+**Check:** Open Settings, then Devices and services, then Entities, and search for `ampio`. The current form is `<domain>.ampio_obj_<object id>`, for example `light.ampio_obj_7`. An install that predates a change of the form keeps its older ids.
+
+**Fix:** None is required. Both forms work, and nothing forces you to change. A release can change the form for a fresh install, and every existing install keeps the ids it has. If you want the current form on an existing install, use the reset procedure below. It is a support procedure, and no update requires it.
+
+## Why does an entity id never change on its own?
+
+Home Assistant builds an entity id once, when the entity registers for the first time. After that the id is stored, and no later change moves it. A device rename does not move it. An area change does not move it. An integration update does not move it.
+
+Removing the integration does not move it either. Home Assistant remembers a removed entity for 30 days. If you add the integration again inside that window, the old entity id comes back. The name you gave the entity and the area you put it in come back with it.
+
+This is good behavior. Your automations keep working across an update, a rename, and a reinstall.
+
+## A relay I tagged as a light shows as a switch
+
+See [designer-quirks.md](designer-quirks.md). That page tells you how to check the tag in the diagnostics, and how to re-save the output in Designer.
+
+## An object sits under the wrong module
+
+See [designer-quirks.md](designer-quirks.md). That page explains why Home Assistant cannot move a child device, and how the repair puts the object under its new module.
+
+## How do I reset every Ampio entity id?
+
+Use this to move an existing install onto the current id form. The procedure deletes every Ampio entity record, so Home Assistant builds the ids again from scratch on the next start.
+
+**Every automation, script, scene, and dashboard card that names an Ampio entity id stops working.** Write those ids down first, and plan to repoint them.
+
+You need shell access to the Home Assistant host, through the SSH add-on or the Terminal add-on.
+
+1. Take a backup, as described above.
+2. Write down the Ampio entity ids your automations use.
+3. Stop Home Assistant:
+
+   ```sh
+   ha core stop
+   ```
+
+4. Copy the entity registry, then remove every Ampio record from it:
+
+   ```sh
+   sudo cp /config/.storage/core.entity_registry /config/.storage/core.entity_registry.bak
+   sudo jq '(.data.entities, .data.deleted_entities) |= map(select(.platform != "ampio"))' \
+     /config/.storage/core.entity_registry > /tmp/registry.json
+   sudo cp /tmp/registry.json /config/.storage/core.entity_registry
+   ```
+
+5. Start Home Assistant:
+
+   ```sh
+   ha core start
+   ```
+
+6. Open Settings, then Devices and services, then Ampio. Confirm that the entity count matches what you had.
+7. Repoint your automations at the new ids.
+
+The `deleted_entities` list matters as much as the `entities` list. Leave the deleted records in place, and Home Assistant restores every old id on the next start.
+
+### If something goes wrong
+
+Stop Home Assistant, copy the backup file back, then start Home Assistant:
+
+```sh
+ha core stop
+sudo cp /config/.storage/core.entity_registry.bak /config/.storage/core.entity_registry
+ha core start
+```
+
+If the instance does not start at all, restore the full backup from Settings, System, Backups.
+
+## What this does not touch
+
+- Your Ampio configuration. The M-SERV holds it, and this integration only reads it.
+- Your devices. Device names and areas live in a separate registry.
+- Any other integration. The filter selects the `ampio` platform alone.
