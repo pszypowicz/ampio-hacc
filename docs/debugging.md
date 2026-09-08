@@ -13,7 +13,7 @@ Settings -> Devices & Services -> Ampio -> the three-dot menu on the entry -> Do
   - `server_info`: the M-SERV self-report (the LAN address is redacted).
   - `connection`: liveness counters - `started_at`, `reconnect_count`, `last_message_at`, `last_error`, and `subscribe_failures` (topics the broker rejected, usually a grant problem).
   - `mac_collisions`: override MACs shared by more than one module row.
-  - `modules`: one row per module in the catalogue, sorted by id, with the module id, MAC, type, model, `last_seen`, `supply_voltage`, and `temperature`. The last-seen time is in epoch seconds. It is the local time of the last live message from the module. It stays empty after a connect until a real push arrives, because the replay of stored values does not count. The two health values come from the module's own broadcast and stay empty on a restricted login.
+  - `modules`: one row per module in the catalogue, sorted by id, with the module id, MAC, type, model, `last_seen`, `supply_voltage`, and `temperature`. The last-seen time is in epoch seconds. It is the local time of the last live message from the module. It stays empty after a connect until a real push arrives, because the replay of stored values does not count. The two health values come from the module's own broadcast and stay empty on a restricted login. Not every module type sends that broadcast, see [faq.md](faq.md#a-module-shows-no-last-seen-time-in-the-diagnostics).
   - `last_payloads`: each server endpoint's verbatim last reply. This is the raw material everything else derives from.
 
 ### Reading the raw catalogue
