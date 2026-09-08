@@ -20,6 +20,12 @@ One M-SERV per Home Assistant. Object ids are unique per server only, so the int
 
 An object device takes the name you gave the object in the Ampio app. A module takes the name you gave it in Ampio Designer. When your account is not an administrator one, a module reads `Ampio module 0x<MAC>` instead. The hub is always `M-SERV`.
 
+## The Identify button
+
+Each module device has an Identify button. A press lights the module's CAN LED for 30 s, so you can find the module in the cabinet. The button works with the administrator login. On a standard account a press shows a message and sends nothing. A DIN-rail module lights its CAN LED steadily. A M-DOT panel lights the LED on its back only, so a wall-mounted panel gives no visible sign.
+
+The module keeps the LED lit until it receives a stop. The integration sends the stop after 30 s, and again at once when you reload or remove the integration. If Home Assistant restarts during those 30 s, the stop is never sent. Then the LED stays lit until Ampio Designer sends a stop or the module restarts.
+
 A rename in Designer or in the app changes nothing in Home Assistant. Rename the device in Home Assistant instead.
 
 ## Areas
