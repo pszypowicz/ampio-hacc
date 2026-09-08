@@ -43,6 +43,6 @@ What to expect in the log:
 
 - Connection lifecycle: one warning when the broker connection is lost, one info line when it is restored, and an error with an automatic reload when the connection ends for good (for example after a credential change).
 - Setup degradation warnings: a failed room-map fetch or a failed Designer-description sweep, each with its consequence.
-- From the library at debug level: connection errors and messages it dropped as unparseable.
+- From the library at debug level: connection errors and messages it dropped as unparsable.
 
 State questions ("why is this entity missing", "why is this a switch") are catalogue questions - answer them from the diagnostics download, not the log.

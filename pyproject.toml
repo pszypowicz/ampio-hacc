@@ -259,3 +259,8 @@ property-decorators = ["propcache.api.cached_property"]
 [[tool.mypy.overrides]]
 module = "homeassistant.components.*"
 no_implicit_reexport = false
+
+[tool.codespell]
+# hass is Home Assistant's own name for its core object. Termostat is Polish
+# and appears verbatim in Designer fixture data.
+ignore-words-list = "hass,termostat"

@@ -1,8 +1,11 @@
 # Ampio for Home Assistant
 
-[![GitHub release](https://img.shields.io/github/v/release/pszypowicz/ampio-homeassistant)](https://github.com/pszypowicz/ampio-homeassistant/releases)
-[![HACS](https://img.shields.io/badge/HACS-custom-41BDF5)](https://hacs.xyz/)
+[![HACS Custom](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
+[![GitHub Release](https://img.shields.io/github/v/release/pszypowicz/ampio-homeassistant)](https://github.com/pszypowicz/ampio-homeassistant/releases)
+[![CI](https://github.com/pszypowicz/ampio-homeassistant/actions/workflows/ci.yaml/badge.svg)](https://github.com/pszypowicz/ampio-homeassistant/actions/workflows/ci.yaml)
 [![License](https://img.shields.io/github/license/pszypowicz/ampio-homeassistant)](LICENSE)
+[![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit)](https://github.com/pre-commit/pre-commit)
+[![Maintainer](https://img.shields.io/badge/maintainer-%40pszypowicz-blue.svg)](https://github.com/pszypowicz)
 
 A Home Assistant integration for the [Ampio Smart Home](https://ampio.com/) system. It talks to the local M-SERV controller over MQTT through the [`ampio-mqtt`](https://pypi.org/project/ampio-mqtt/) library. Local push, no cloud.
 
@@ -57,6 +60,7 @@ If something else looks wrong, see [docs/faq.md](docs/faq.md). Each answer there
 - [docs/devices.md](docs/devices.md): the device tree, names, areas, entity ids, and what a change in Ampio Designer does.
 - [docs/designer-quirks.md](docs/designer-quirks.md): a relay tagged as a light that shows as a switch, the Matter checkbox, an object moved to another module, and integer sensor slots.
 - [docs/debugging.md](docs/debugging.md): the diagnostics download and debug logging, for a bug report.
+- [docs/development.md](docs/development.md): the gate venv, the pre-commit hooks, and how to run the CI checks locally.
 
 ## Known limitations
 
