@@ -30,6 +30,28 @@ DIAGNOSTICS_SNAPSHOT = {
         "subscribe_failures": {},
     },
     "mac_collisions": [],
+    # One row per module: the relay has pushed since the connect and carries
+    # its health broadcast, the sensor module has not spoken yet.
+    "modules": [
+        {
+            "id": 3,
+            "mac": 48770,
+            "typ_urzadzenia": 4,
+            "model": "M-REL-8s",
+            "last_seen": 1782108300.0,
+            "supply_voltage": 13.9,
+            "temperature": 31.5,
+        },
+        {
+            "id": 17,
+            "mac": 52111,
+            "typ_urzadzenia": 44,
+            "model": "M-SENS",
+            "last_seen": None,
+            "supply_voltage": None,
+            "temperature": None,
+        },
+    ],
     # The raw server reply embeds location facts key-based redaction cannot
     # reach inside a string; the fixture carries fake ones so the snapshot
     # proves the whole payload is masked.
