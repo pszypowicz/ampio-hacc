@@ -152,7 +152,8 @@ class AmpioData:
 
     ``async_create`` builds the hub, one module device per Designer module
     row, and the room map. ``ensure_module_device`` creates the module
-    device of a row the tree meets later, through the same path.
+    device of a row the tree meets later, through the same path, and
+    ``forget_module_device`` drops one the user deleted.
     """
 
     def __init__(
@@ -311,6 +312,21 @@ class AmpioData:
         )
         self.module_device_ids[module_id] = device.id
         return module_id
+
+    @callback
+    def forget_module_device(self, device_id: str) -> None:
+        """Drop a module device from the tree, so that its row's return builds it again.
+
+        The removal hook calls it when it permits the delete of a module
+        device. The registry keeps the deleted record, so the next object
+        on the row gets the device back through ``ensure_module_device``,
+        with its id, its user name, and its area.
+        """
+        self.module_device_ids = {
+            module_id: known
+            for module_id, known in self.module_device_ids.items()
+            if known != device_id
+        }
 
     @callback
     def async_add_platform(

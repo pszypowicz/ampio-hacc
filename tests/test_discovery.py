@@ -43,6 +43,7 @@ from .conftest import (
     MSENS_IDENTIFIER,
     emit,
     make_object,
+    module_pinned_id,
     pinned_id,
     unique_id,
 )
@@ -487,3 +488,47 @@ async def test_module_factory_builds_now_and_for_a_new_row(
     assert built == [17, 21]
     platform.async_add_entities.assert_awaited_once()
     assert len(platform.async_add_entities.call_args.args[0]) == 1
+
+
+async def test_deleted_module_device_comes_back_with_its_row(
+    hass: HomeAssistant,
+    mock_client: MagicMock,
+    mock_config_entry: MockConfigEntry,
+    device_registry: dr.DeviceRegistry,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A module device the user deleted is built again when its row returns.
+
+    The hook permits the delete once no eligible object resolves to the
+    module. The next object on the row then gets the device back with its
+    registry id, its child under it, and the module's Identify button.
+    """
+    await setup_integration(hass, mock_config_entry)
+    new_input = _new_input(id_urzadzenia=21, leaf_id="0_d009_wej_0_1")
+    await _add(hass, mock_client, new_input)
+    module = device_registry.async_get_device_by_identifier(
+        (DOMAIN, "module:21"), mock_config_entry.entry_id
+    )
+    assert module is not None
+    button_id = module_pinned_id("button", 21, "_identify")
+    assert hass.states.get(button_id) is not None
+
+    await _remove(hass, mock_client, NEW_INPUT_ID)
+    assert await async_remove_config_entry_device(hass, mock_config_entry, module)
+    device_registry.async_remove_device(module.id)
+    await hass.async_block_till_done()
+    assert hass.states.get(button_id) is None
+
+    await _add(hass, mock_client, new_input)
+
+    rebuilt = device_registry.async_get_device_by_identifier(
+        (DOMAIN, "module:21"), mock_config_entry.entry_id
+    )
+    child = _child(device_registry, mock_config_entry, NEW_INPUT_ID)
+    assert rebuilt is not None
+    assert rebuilt.id == module.id
+    assert child is not None
+    assert child.parent_device_id == rebuilt.id
+    assert hass.states.get(NEW_INPUT_ENTITY_ID).state == STATE_OFF
+    assert hass.states.get(button_id) is not None
+    assert not [record for record in caplog.records if record.levelno >= logging.ERROR]
