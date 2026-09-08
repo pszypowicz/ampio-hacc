@@ -23,6 +23,26 @@
       }),
       'mac_collisions': list([
       ]),
+      'modules': list([
+        dict({
+          'id': 3,
+          'last_seen': 1782108300.0,
+          'mac': 48770,
+          'model': 'M-REL-8s',
+          'supply_voltage': 13.9,
+          'temperature': 31.5,
+          'typ_urzadzenia': 4,
+        }),
+        dict({
+          'id': 17,
+          'last_seen': None,
+          'mac': 52111,
+          'model': 'M-SENS',
+          'supply_voltage': None,
+          'temperature': None,
+          'typ_urzadzenia': 44,
+        }),
+      ]),
       'server_info': dict({
         'device_id': '**REDACTED**',
         'local_ip': '**REDACTED**',
