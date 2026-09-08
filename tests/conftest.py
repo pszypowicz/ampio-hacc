@@ -109,6 +109,8 @@ def make_object(
     lammel: int | None = None,
     thermostat: ThermostatState | None = None,
     czas: int = 0,
+    url: str = "",
+    string_format: str = "",
 ) -> AmpioObject:
     """Build a classified object the way discovery would."""
     return AmpioObject(
@@ -125,6 +127,8 @@ def make_object(
         lammel=lammel,
         thermostat=thermostat,
         czas=czas,
+        url=url,
+        format=string_format,
     )
 
 
@@ -142,9 +146,10 @@ def make_object(
 # outlet class. The three cover objects (a
 # plain roleta without feedback, a percent roleta, a lamella blind) feed the
 # cover platform. The thermostat object feeds the climate platform; its value
-# is the running flag. The named flag on module mac 1 (the M-SERV itself) is
-# server-owned, so its child device parents to the hub instead of a module
-# device like every other module-owned object's child.
+# is the running flag. Four integer sensor slots feed the value sensor path.
+# The named flag on module mac 1 (the M-SERV itself) is server-owned, so its
+# child device parents to the hub instead of a module device like every
+# other module-owned object's child.
 DEFAULT_OBJECTS = (
     make_object(
         36,
@@ -314,6 +319,41 @@ DEFAULT_OBJECTS = (
         opis_menu="Dom pusty",
         state="0",
     ),
+    # Four integer sensor slots, the shape an M-CON-485 gives a Modbus
+    # reading: a current with its unit in the string format tail and the
+    # value the M-SERV already divided, an energy total with the unit in
+    # the Unit field alone, a bare 16-bit counter with no unit, and a
+    # hidden slot that must yield nothing.
+    make_object(
+        160,
+        "bit32",
+        1,
+        leaf_id="0_cb8f_1005_0_0",
+        funkcja=14,
+        opis_menu="Prąd L1",
+        state="0.370000",
+        string_format="%.3f A",
+    ),
+    make_object(
+        161,
+        "bit32",
+        2,
+        leaf_id="0_cb8f_1005_0_1",
+        funkcja=15,
+        opis_menu="Energia",
+        state="23512.09",
+        url="kWh",
+    ),
+    make_object(
+        162,
+        "bit16",
+        3,
+        leaf_id="0_cb8f_1006_0_0",
+        funkcja=16,
+        opis_menu="Licznik",
+        state="42",
+    ),
+    make_object(163, "bit32", 4, leaf_id="0_cb8f_1005_0_2", funkcja=17, params=16),
 )
 
 # The default module catalogue an administrator account receives.

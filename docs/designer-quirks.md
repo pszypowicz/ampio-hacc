@@ -30,6 +30,31 @@ Home Assistant cannot move a child device to another parent. When you move an ob
 
 Submit the repair, or delete the object's device under Settings, then Devices and services. The object comes back under the new module, with its id, its area, and its name restored. If that object was the last one on its old module, the old module device stays behind empty, and the repair lists it too.
 
+## Integer sensor slots and the Modbus divider
+
+An M-CON-485 stores each Modbus reading in an integer sensor slot, and Designer turns the slot into a `bit 8`, `bit 16`, `sbit 16`, or `bit 32` object. The slot holds whole numbers only. To keep decimals, do this in Designer:
+
+1. In the Modbus query, multiply the register by a power of ten, for
+   example 100 for two decimals.
+2. Open the object, click Dictionary, enable Divide by, and enter the same
+   factor.
+3. Set the Unit field, or a string format that ends with the unit, such as
+   `%.2f A`.
+
+The M-SERV applies the divider before it publishes, so the integration receives the real value and adds no scale of its own. The entity reads the unit from the string format tail first, then from the Unit field. Home Assistant's own unit table then gives the device class: `A` reads current, `V` voltage, `W` and `kW` power, `Hz` frequency, and `lx` illuminance. Some units belong to two classes in that table, and the integration settles these:
+
+| Unit                    | Device class                                                                                  |
+| ----------------------- | --------------------------------------------------------------------------------------------- |
+| kWh, Wh, MWh            | energy, as a running total                                                                    |
+| °C, °F                  | temperature                                                                                   |
+| hPa, Pa, kPa, bar, mbar | pressure (the M-SENS barometer reads atmospheric pressure; a generic slot is not a barometer) |
+
+Any other unit that belongs to two classes, such as `%` or `m³`, keeps the unit and gets no device class. A unit Home Assistant does not know does the same. A slot with no unit at all surfaces as a plain number with no state class, so it keeps no long-term statistics until you give it a unit.
+
+A unit change in Designer reaches the entity at once. Home Assistant writes the precision hint and the original device class into its registry at registration, so those two follow on the next reload. Home Assistant then raises its statistics repair for that entity, because the recorded history carries the old unit. A change of the divider rescales the value, and the history keeps the old scale. If you change a unit to another unit of the same quantity, such as `A` to `mA`, Home Assistant keeps showing the unit it registered first and converts the values, because it stores that first unit as the display unit at registration.
+
+The Divide by checkbox is the same mechanism that gives linear inputs their decimals: Designer creates those with Divide by 10.
+
 ## The stability contract
 
 Ampio accounts upgrade and downgrade between the admin login and app-created users. The integration therefore derives everything that defines an entity's platform or the device topology from data the restricted tier receives.

@@ -8,16 +8,16 @@ A Home Assistant integration for the [Ampio Smart Home](https://ampio.com/) syst
 
 ## Platforms
 
-| Platform        | What you get                                                                 |
-| --------------- | ---------------------------------------------------------------------------- |
-| `sensor`        | Temperature, humidity, pressure, CO2, air quality, illuminance, loudness     |
-| `binary_sensor` | Wired button inputs                                                          |
-| `light`         | Dimmers, RGBW outputs, and relays tagged as lights in Ampio Designer         |
-| `cover`         | Shutters and blinds, with position and slat tilt where the hardware has them |
-| `switch`        | Remaining relays and Ampio flags, with the outlet class for plug-tagged ones |
-| `button`        | Relays and flags marked as bell objects in Ampio Designer (a single press)   |
-| `climate`       | Heating regulators with temperature readback and operating-mode presets      |
-| `scene`         | The Ampio app's scene catalog                                                |
+| Platform        | What you get                                                                                                                                                                         |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `sensor`        | Temperature, humidity, pressure, CO2, air quality, illuminance, loudness, and every integer sensor slot, with the Designer unit where one is set (Modbus meters behind an M-CON-485) |
+| `binary_sensor` | Wired button inputs                                                                                                                                                                  |
+| `light`         | Dimmers, RGBW outputs, and relays tagged as lights in Ampio Designer                                                                                                                 |
+| `cover`         | Shutters and blinds, with position and slat tilt where the hardware has them                                                                                                         |
+| `switch`        | Remaining relays and Ampio flags, with the outlet class for plug-tagged ones                                                                                                         |
+| `button`        | Relays and flags marked as bell objects in Ampio Designer (a single press)                                                                                                           |
+| `climate`       | Heating regulators with temperature readback and operating-mode presets                                                                                                              |
+| `scene`         | The Ampio app's scene catalog                                                                                                                                                        |
 
 ## Installation
 
