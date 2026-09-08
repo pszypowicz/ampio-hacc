@@ -39,7 +39,8 @@ An M-CON-485 stores each Modbus reading in an integer sensor slot, and Designer 
 2. Open the object, click Dictionary, enable Divide by, and enter the same
    factor.
 3. Set the Unit field, or a string format that ends with the unit, such as
-   `%.2f A`.
+   `%.2f A`. Click outside the Unit field before you save, because Designer
+   commits the field when it loses focus.
 
 The M-SERV applies the divider before it publishes, so the integration receives the real value and adds no scale of its own. The entity reads the unit from the string format tail first, then from the Unit field. Home Assistant's own unit table then gives the device class: `A` reads current, `V` voltage, `W` and `kW` power, `Hz` frequency, and `lx` illuminance. Some units belong to two classes in that table, and the integration settles these:
 
