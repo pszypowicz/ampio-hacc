@@ -159,13 +159,13 @@ class AmpioIdentifyButton(AmpioPinnedEntity, ButtonEntity):
             raise ServiceValidationError(
                 translation_domain=DOMAIN, translation_key="identify_needs_admin"
             )
-        self._cancel_pending_stop()
         try:
             await client.identify(self._module_id)
         except ValueError as err:
             raise HomeAssistantError(
                 translation_domain=DOMAIN, translation_key="module_not_addressable"
             ) from err
+        self._cancel_pending_stop()
         self._cancel_stop = async_call_later(
             self.hass, IDENTIFY_HOLD_SECONDS, self._async_stop
         )
@@ -184,7 +184,7 @@ class AmpioIdentifyButton(AmpioPinnedEntity, ButtonEntity):
         self._cancel_stop = None
         try:
             await self._data.client.identify_stop(self._module_id)
-        except AmpioConnectionError, AmpioTimeoutError:
+        except AmpioConnectionError, AmpioTimeoutError, ValueError, RuntimeError:
             _LOGGER.warning(
                 "Could not send the identify stop to Ampio module %s; its LED "
                 "stays lit until Ampio Designer sends one or the module restarts",

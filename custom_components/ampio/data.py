@@ -136,7 +136,7 @@ def _module_name(module: AmpioModule | None, mac: int | None, module_id: int) ->
     administrator login alone. A restricted account is served the
     leaf-embedded mac instead, and a module whose objects all lost their
     leaf is left with its Designer row id. So this name follows the account
-    tier. Nothing depends on it: ``AmpioEntity`` pins the entity id, so a
+    tier. Nothing depends on it: ``AmpioPinnedEntity`` pins the entity id, so a
     name that changes on a tier switch renames the device in the interface
     and moves no id.
     """

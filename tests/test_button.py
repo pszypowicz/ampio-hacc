@@ -3,11 +3,13 @@
 from collections.abc import Generator
 from dataclasses import replace
 from datetime import timedelta
+import logging
 from unittest.mock import MagicMock, patch
 
 from ampio_mqtt import (
     AccessTier,
     AmpioConnectionError,
+    AmpioTimeoutError,
     AvailabilityChanged,
     ObjectAdded,
 )
@@ -193,8 +195,9 @@ async def test_identify_needs_admin(
     mock_client.access_tier = AccessTier.RESTRICTED
     await setup_integration(hass, mock_config_entry)
 
-    with pytest.raises(ServiceValidationError):
+    with pytest.raises(ServiceValidationError) as excinfo:
         await _press(hass, IDENTIFY_ENTITY_ID)
+    assert excinfo.value.translation_key == "identify_needs_admin"
     mock_client.identify.assert_not_called()
 
 
@@ -206,28 +209,42 @@ async def test_identify_unknown_module_raises(
     mock_client.identify.side_effect = ValueError("module id 17 has no mac")
     await setup_integration(hass, mock_config_entry)
 
-    with pytest.raises(HomeAssistantError):
+    with pytest.raises(HomeAssistantError) as excinfo:
         await _press(hass, IDENTIFY_ENTITY_ID)
+    assert excinfo.value.translation_key == "module_not_addressable"
+    assert not isinstance(excinfo.value, ServiceValidationError)
 
     await _elapse(hass, IDENTIFY_HOLD_SECONDS + 1)
     mock_client.identify_stop.assert_not_called()
 
 
 @pytest.mark.usefixtures("button_only")
+@pytest.mark.parametrize(
+    "error", [AmpioConnectionError("Not connected"), AmpioTimeoutError("no ack")]
+)
 async def test_identify_stop_failure_logs(
     hass: HomeAssistant,
     mock_client: MagicMock,
     mock_config_entry: MockConfigEntry,
     caplog: pytest.LogCaptureFixture,
+    error: Exception,
 ) -> None:
     """A stop the broker does not carry logs once, because the LED stays lit."""
-    mock_client.identify_stop.side_effect = AmpioConnectionError("Not connected")
+    mock_client.identify_stop.side_effect = error
     await setup_integration(hass, mock_config_entry)
 
     await _press(hass, IDENTIFY_ENTITY_ID)
     await _elapse(hass, IDENTIFY_HOLD_SECONDS + 1)
 
-    assert "Could not send the identify stop to Ampio module 17" in caplog.text
+    warnings = [
+        record
+        for record in caplog.records
+        if record.name == "custom_components.ampio.button"
+        and record.levelno == logging.WARNING
+    ]
+    assert len(warnings) == 1
+    message = warnings[0].getMessage()
+    assert "Could not send the identify stop to Ampio module 17" in message
 
 
 @pytest.mark.usefixtures("button_only")

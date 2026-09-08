@@ -203,7 +203,7 @@ async def test_restricted_account_groups_by_module_row(
         if entity.domain == "scene":
             assert entity.device_id == hub.id
             continue
-        if entity.unique_id == "module_17_identify":
+        if entity.unique_id.startswith("module_"):
             assert entity.device_id == module.id
             continue
         assert entity.device_id is not None
@@ -679,7 +679,7 @@ async def test_every_object_gets_a_child_device(
     ):
         if entity.domain == "scene":
             assert entity.device_id == hub.id
-        elif entity.unique_id == "module_17_identify":
+        elif entity.unique_id.startswith("module_"):
             assert entity.device_id == module.id
         else:
             assert entity.device_id is not None
