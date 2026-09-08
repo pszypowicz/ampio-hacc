@@ -71,6 +71,15 @@ def pinned_id(domain: str, oid: int, suffix: str = "") -> str:
     return f"{domain}.ampio_{unique_id(oid, suffix)}"
 
 
+def module_pinned_id(domain: str, module_id: int, suffix: str) -> str:
+    """The pinned entity id of a module device's entity in ``domain``.
+
+    A module has no object, so the key is the Designer row id and a suffix
+    that names the entity, with the domain in front.
+    """
+    return f"{domain}.ampio_module_{module_id}{suffix}"
+
+
 # A sweep that read every module and joined nothing.
 EMPTY_SWEEP = RecordSweep(
     records={}, answered_macs=frozenset(), silent_macs=frozenset()
