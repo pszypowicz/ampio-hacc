@@ -47,13 +47,13 @@ The M-SERV applies the divider before it publishes, so the integration receives 
 | ----------------------- | --------------------------------------------------------------------------------------------- |
 | kWh, Wh, MWh            | energy, as a running total                                                                    |
 | °C, °F                  | temperature                                                                                   |
-| hPa, Pa, kPa, bar, mbar | pressure (the M-SENS barometer reads atmospheric pressure; a generic slot is not a barometer) |
+| hPa, Pa, kPa, bar, mbar | pressure (the M-SENS barometer reads atmospheric pressure, and a generic slot is not a barometer) |
 
 Any other unit that belongs to two classes, such as `%` or `m³`, keeps the unit and gets no device class. A unit Home Assistant does not know does the same. A slot with no unit at all surfaces as a plain number with no state class, so it keeps no long-term statistics until you give it a unit.
 
-A unit change in Designer reaches the entity at once. Home Assistant writes the precision hint and the original device class into its registry at registration, so those two follow on the next reload. Home Assistant then raises its statistics repair for that entity, because the recorded history carries the old unit. A change of the divider rescales the value, and the history keeps the old scale. If you change a unit to another unit of the same quantity, such as `A` to `mA`, Home Assistant keeps showing the unit it registered first and converts the values, because it stores that first unit as the display unit at registration.
+A unit change in Designer reaches the entity at once. Home Assistant writes the precision hint and the original device class into its registry at registration, so those two follow on the next reload. If you change a unit to another unit of the same quantity, such as `A` to `mA`, Home Assistant keeps showing the unit it registered first and converts the values, because it stores that first unit as the display unit at registration. Home Assistant then raises its statistics repair for that entity, because the recorded history carries the old unit. A change of the divider rescales the value, and the history keeps the old scale.
 
-The Divide by checkbox is the same mechanism that gives linear inputs their decimals: Designer creates those with Divide by 10.
+The Divide by checkbox is the same mechanism that gives linear inputs their decimals, because Designer creates those with Divide by 10.
 
 ## The stability contract
 
