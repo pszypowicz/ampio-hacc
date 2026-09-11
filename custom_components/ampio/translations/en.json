@@ -107,6 +107,12 @@
         }
     },
     "exceptions": {
+        "buzz_duration_too_long": {
+            "message": "A buzzer pattern step cannot last longer than {maximum} seconds."
+        },
+        "buzzer_stop_failed": {
+            "message": "The Ampio server did not confirm the buzzer stop, so the panel may still be sounding."
+        },
         "cannot_connect": {
             "message": "Cannot connect to the Ampio server."
         },

@@ -19,7 +19,7 @@ from homeassistant.components.siren import (
     SirenEntityFeature,
 )
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.exceptions import HomeAssistantError
+from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.event import async_call_later
@@ -138,6 +138,12 @@ class AmpioBuzzer(AmpioPinnedEntity, SirenEntity):
         tone = int(kwargs.get(ATTR_TONE, DEFAULT_TONE))
         duration = kwargs.get(ATTR_DURATION)
         seconds = MAX_STEP_SECONDS if duration is None else float(duration)
+        if seconds > MAX_STEP_SECONDS:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="buzz_duration_too_long",
+                translation_placeholders={"maximum": str(MAX_STEP_SECONDS)},
+            )
         cycles = 0 if duration is None else 1
         try:
             await self._data.client.buzz_pattern(
@@ -155,41 +161,19 @@ class AmpioBuzzer(AmpioPinnedEntity, SirenEntity):
 
     @override
     async def async_turn_off(self, **kwargs: Any) -> None:
-        """Silence the buzzer now."""
-        self._cancel_pending_stop()
-        await self._async_silence()
-        self.async_write_ha_state()
+        """Silence the buzzer now; a stop the broker does not carry raises.
 
-    async def async_buzz_pattern(
-        self,
-        tone: int,
-        seconds: float,
-        tone2: int,
-        seconds2: float,
-        cycles: int,
-        delay: float,
-    ) -> None:
-        """Play the frame's own two-slot sequence.
-
-        Tone 0 is a silent rest, so three pips are one tone, one rest, three
-        cycles. ``cycles`` 0 repeats until a stop.
+        Unlike the unload path, a user-invoked stop must not report success
+        it did not reach, so the caller learns the panel may still sound.
         """
-        try:
-            await self._data.client.buzz_pattern(
-                self._module_id,
-                tone=tone,
-                seconds=seconds,
-                tone2=tone2,
-                seconds2=seconds2,
-                cycles=cycles,
-                delay=delay,
-            )
-        except ValueError as err:
-            raise HomeAssistantError(
-                translation_domain=DOMAIN, translation_key="module_not_addressable"
-            ) from err
         self._cancel_pending_stop()
-        self._attr_is_on = True
+        try:
+            await self._data.client.buzz_stop(self._module_id)
+        except (AmpioConnectionError, AmpioTimeoutError, ValueError) as err:
+            raise HomeAssistantError(
+                translation_domain=DOMAIN, translation_key="buzzer_stop_failed"
+            ) from err
+        self._attr_is_on = False
         self.async_write_ha_state()
 
     @callback
@@ -206,7 +190,10 @@ class AmpioBuzzer(AmpioPinnedEntity, SirenEntity):
         self.async_write_ha_state()
 
     async def _async_silence(self) -> None:
-        """Send the stop; one that fails leaves the panel sounding, and says so."""
+        """Send the stop for an unload; a failure leaves the panel sounding, and logs.
+
+        An unload must not raise, unlike the service path in ``async_turn_off``.
+        """
         self._attr_is_on = False
         try:
             await self._data.client.buzz_stop(self._module_id)
