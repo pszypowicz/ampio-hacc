@@ -457,8 +457,65 @@ async def test_module_factory_builds_now_and_for_a_new_row(
 
     The default catalogue puts every module-owned object on row 17, so the
     registration builds for that row alone. A row the tree meets in a later
-    batch is built through the platform the factory was registered on.
+    batch is built through the platform the factory was registered on. An
+    ``admin_only`` factory builds on the same rows, because the fixture
+    defaults to the administrator tier.
     """
+    await setup_integration(hass, mock_config_entry)
+    data: AmpioData = mock_config_entry.runtime_data
+    platform = MagicMock(spec=EntityPlatform)
+    platform.async_add_entities = AsyncMock()
+    built: list[int] = []
+    gated_built: list[int] = []
+
+    def factory(_data: AmpioData, module_id: int) -> list[Entity]:
+        built.append(module_id)
+        return [MagicMock(spec=Entity)]
+
+    def gated_factory(_data: AmpioData, module_id: int) -> list[Entity]:
+        gated_built.append(module_id)
+        return [MagicMock(spec=Entity)]
+
+    async_add_entities = MagicMock()
+    with patch(
+        "custom_components.ampio.data.async_get_current_platform",
+        return_value=platform,
+    ):
+        data.async_add_module_platform(factory, async_add_entities)
+        data.async_add_module_platform(
+            gated_factory, async_add_entities, admin_only=True
+        )
+
+    assert built == [17]
+    assert gated_built == [17]
+    assert async_add_entities.call_count == 2
+    for call in async_add_entities.call_args_list:
+        assert len(call.args[0]) == 1
+    assert data.ensure_module_device(mock_client.objects[36]) is None
+
+    await _add(
+        hass, mock_client, _new_input(id_urzadzenia=21, leaf_id="0_d009_wej_0_1")
+    )
+
+    assert built == [17, 21]
+    assert gated_built == [17, 21]
+    assert platform.async_add_entities.await_count == 2
+    for call in platform.async_add_entities.call_args_list:
+        assert len(call.args[0]) == 1
+
+
+async def test_gated_module_factory_stays_withheld_on_a_restricted_account(
+    hass: HomeAssistant, mock_client: MagicMock, mock_config_entry: MockConfigEntry
+) -> None:
+    """A restricted account never adds a gated factory's entities, new row or not.
+
+    ``withheld_unique_ids()`` calls a gated factory too, on purpose, to
+    compute the ids it withholds, so a raw call count on the factory itself
+    would not tell a real build apart from that bookkeeping. What must stay
+    empty is the entities a gated registration hands to Home Assistant,
+    both at registration and in a later batch.
+    """
+    mock_client.access_tier = AccessTier.RESTRICTED
     await setup_integration(hass, mock_config_entry)
     data: AmpioData = mock_config_entry.runtime_data
     platform = MagicMock(spec=EntityPlatform)
@@ -469,24 +526,29 @@ async def test_module_factory_builds_now_and_for_a_new_row(
         built.append(module_id)
         return [MagicMock(spec=Entity)]
 
+    def gated_factory(_data: AmpioData, module_id: int) -> list[Entity]:
+        return [MagicMock(spec=Entity)]
+
     async_add_entities = MagicMock()
+    gated_async_add_entities = MagicMock()
     with patch(
         "custom_components.ampio.data.async_get_current_platform",
         return_value=platform,
     ):
         data.async_add_module_platform(factory, async_add_entities)
+        data.async_add_module_platform(
+            gated_factory, gated_async_add_entities, admin_only=True
+        )
 
     assert built == [17]
-    async_add_entities.assert_called_once()
-    assert len(async_add_entities.call_args.args[0]) == 1
-    assert data.ensure_module_device(mock_client.objects[36]) is None
+    gated_async_add_entities.assert_called_once_with([])
 
     await _add(
         hass, mock_client, _new_input(id_urzadzenia=21, leaf_id="0_d009_wej_0_1")
     )
 
     assert built == [17, 21]
-    platform.async_add_entities.assert_awaited_once()
+    assert platform.async_add_entities.await_count == 1
     assert len(platform.async_add_entities.call_args.args[0]) == 1
 
 

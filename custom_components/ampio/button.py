@@ -6,7 +6,6 @@ import logging
 from typing import Final, override
 
 from ampio_mqtt import (
-    AccessTier,
     AmpioConnectionError,
     AmpioObject,
     AmpioTimeoutError,
@@ -67,7 +66,7 @@ async def async_setup_entry(
     """Register the button platform; the runtime data builds and keeps its entities."""
     entry.runtime_data.async_add_platform(build_buttons, async_add_entities)
     entry.runtime_data.async_add_module_platform(
-        build_identify_buttons, async_add_entities
+        build_identify_buttons, async_add_entities, admin_only=True
     )
 
 
@@ -98,10 +97,10 @@ class AmpioIdentifyButton(AmpioPinnedEntity, ButtonEntity):
     """Lights a module's CAN LED, so that the module can be found by eye.
 
     The Designer's "Identify device" button. The frame rides the CAN write
-    tree, which answers the administrator login alone, and the module
-    holds identify until a stop frame, which this entity sends after
-    ``IDENTIFY_HOLD_SECONDS``. No readback exists, so the state is never
-    more than the connection.
+    tree, which answers the administrator login alone, so this entity is
+    built on that account alone. The module holds identify until a stop
+    frame, which this entity sends after ``IDENTIFY_HOLD_SECONDS``. No
+    readback exists, so the state is never more than the connection.
     """
 
     _attr_device_class = ButtonDeviceClass.IDENTIFY
@@ -143,24 +142,18 @@ class AmpioIdentifyButton(AmpioPinnedEntity, ButtonEntity):
     @property
     @override
     def available(self) -> bool:
-        """Available while the broker is connected, on both account tiers."""
+        """Available while the broker is connected."""
         return self._data.client.available
 
     @override
     async def async_press(self) -> None:
         """Send the identify start, and schedule the stop.
 
-        A standard login is rejected before any publish, because the raw
-        write tree is not served to it. A row the catalogue cannot address
-        surfaces as an error with a message rather than a bare ValueError.
+        A row the catalogue cannot address surfaces as an error with a
+        message rather than a bare ValueError.
         """
-        client = self._data.client
-        if client.access_tier is not AccessTier.ADMIN:
-            raise ServiceValidationError(
-                translation_domain=DOMAIN, translation_key="identify_needs_admin"
-            )
         try:
-            await client.identify(self._module_id)
+            await self._data.client.identify(self._module_id)
         except ValueError as err:
             raise HomeAssistantError(
                 translation_domain=DOMAIN, translation_key="module_not_addressable"
@@ -184,7 +177,7 @@ class AmpioIdentifyButton(AmpioPinnedEntity, ButtonEntity):
         self._cancel_stop = None
         try:
             await self._data.client.identify_stop(self._module_id)
-        except AmpioConnectionError, AmpioTimeoutError, ValueError, RuntimeError:
+        except AmpioConnectionError, AmpioTimeoutError, ValueError:
             _LOGGER.warning(
                 "Could not send the identify stop to Ampio module %s; its LED "
                 "stays lit until Ampio Designer sends one or the module restarts",

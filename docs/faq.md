@@ -18,7 +18,7 @@ Do not start a procedure on this page without a backup. Some of them delete reco
 
 ## An entity is listed that Ampio Designer no longer has
 
-**Check:** Such an entity shows the state `unavailable` or the label "restored". After each start or reload the integration raises one repair on the Settings page, under Repairs. The repair lists every device and entity that the integration did not build on that start.
+**Check:** Such an entity shows the state `unavailable` or the label "restored". After each start or reload the integration raises up to two repairs on the Settings page, under Repairs. One lists the devices and entities it did not build and cannot explain. The other lists the entities it withheld because your Ampio account is not the administrator one.
 
 **Fix:** Select Submit on the repair to delete them all at once. The integration then reloads. An object that you moved to another module in Ampio Designer comes back under its new module.
 
@@ -45,7 +45,7 @@ Open the entry, choose Reconfigure from its menu, and enter the address and the 
 
 Do not delete the integration for this. A delete removes every device record and every entity record. You lose every rename and every area with them.
 
-A different account changes what the server serves you. An app-created user receives the objects granted to it in the Ampio app, so an object outside that grant loses its entities. The repair on the Settings page lists them. Read the list before you submit it.
+A different account changes what the server serves you. An app-created user receives the objects granted to it in the Ampio app, so an object outside that grant loses its entities. The repair on the Settings page lists them. Read the list before you submit it. If you move to a standard account, a second repair lists the Identify buttons it withheld, and that one is explained under "The Identify buttons are gone".
 
 If the address you enter answers with different M-SERV hardware, the flow asks you to confirm first. It names the CAN address it found. Continue only if you replaced the M-SERV, or if you meant to point Home Assistant at another one.
 
@@ -76,6 +76,14 @@ See [designer-quirks.md](designer-quirks.md). That page explains why Home Assist
 **Check:** Find the module's row under `snapshot.modules` in the diagnostics download, as described in [debugging.md](debugging.md). Look at `supply_voltage` in the same row. If that value is empty too, the module sends no health broadcast, and its last-seen time moves only when one of its objects changes. On the reference install the roller modules, the M-SERV row, and an M-CON-s on old firmware send none. The library lists every type and firmware in [raw-channel-bridge.md](https://github.com/pszypowicz/ampio-mqtt/blob/main/docs/raw-channel-bridge.md). A module that shows a voltage does send the broadcast. Its last-seen time can still lag by a few minutes after a restart, because the broadcast comes on a change of the reading only.
 
 **Fix:** None is required. An empty value says only that nothing arrived from that module since the restart. Move one of its covers, or wait for one of its objects to change, and the row fills. If a light or a cover on that module still responds, the module is alive.
+
+## The Identify buttons are gone
+
+They are provided with the administrator login alone. The Ampio server carries the frame they send to that login and no other, so a standard account is given no such button.
+
+Earlier releases built the button on both accounts, where a press on a standard account only ever returned an error. If you did not change anything, an update is what removed them. If you changed the account this integration uses, that removed them too.
+
+A repair on the Settings page lists them. Submit it to delete the records, or leave it alone. If you point the integration back at the administrator account, the buttons come back on their own with the same entity ids.
 
 ## How do I reset every Ampio entity id?
 

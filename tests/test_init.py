@@ -263,18 +263,15 @@ async def test_restricted_account_groups_by_module_row(
     entities = er.async_entries_for_config_entry(
         entity_registry, mock_config_entry.entry_id
     )
-    assert len(entities) == 30
-    # The tree is three deep. Scenes and a module's identify button sit
-    # directly on their device. Every object sits on a child device of its
-    # own, under its module, or under the hub for a server-owned object.
-    # The tier changes no parent and no identifier.
+    assert len(entities) == 29
+    # The tree is three deep. A scene sits directly on the hub. Every object
+    # sits on a child device of its own, under its module, or under the hub
+    # for a server-owned object. The tier changes no parent and no
+    # identifier, and a standard account is given no identify button.
     hub_unique_ids = {unique_id(121)}
     for entity in entities:
         if entity.domain == "scene":
             assert entity.device_id == hub.id
-            continue
-        if entity.unique_id.startswith("module_"):
-            assert entity.device_id == module.id
             continue
         assert entity.device_id is not None
         child = device_registry.async_get(entity.device_id)

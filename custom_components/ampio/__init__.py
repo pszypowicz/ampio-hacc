@@ -24,7 +24,7 @@ from homeassistant.core import Event, HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr, issue_registry as ir
 
-from .const import DOMAIN, PLATFORMS, STALE_RECORDS_ISSUE
+from .const import ADMIN_ONLY_RECORDS_ISSUE, DOMAIN, PLATFORMS, STALE_RECORDS_ISSUE
 from .data import AmpioConfigEntry, AmpioData, eligible_objects
 from .stale import async_report_stale_records
 
@@ -159,7 +159,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: AmpioConfigEntry) -> boo
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     # The platforms have claimed every record they build. Whatever the
     # registries still hold for this entry beyond that is a leftover the
-    # user gets to delete through one repair issue, recomputed after every
+    # user gets to delete through a repair issue, recomputed after every
     # catalogue change from here on.
     entry.runtime_data.async_mark_ready(
         partial(async_report_stale_records, hass, entry)
@@ -174,7 +174,8 @@ async def async_unload_entry(hass: HomeAssistant, entry: AmpioConfigEntry) -> bo
 
 
 async def async_remove_entry(hass: HomeAssistant, entry: AmpioConfigEntry) -> None:
-    """The records go with the entry, so the repair has nothing left to fix."""
+    """The records go with the entry, so neither repair has anything left to fix."""
+    ir.async_delete_issue(hass, DOMAIN, ADMIN_ONLY_RECORDS_ISSUE)
     ir.async_delete_issue(hass, DOMAIN, STALE_RECORDS_ISSUE)
 
 

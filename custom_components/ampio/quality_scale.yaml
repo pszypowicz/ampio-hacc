@@ -83,10 +83,12 @@ rules:
   stale-devices:
     status: done
     comment: |
-      Records no platform holds raise one repair issue whose fix deletes
-      them. The issue is recomputed after every setup and after every
-      catalogue change. The integration never deletes on its own, because
-      on a restricted account a grant change looks the same as a delete.
+      Records no platform holds raise a repair issue whose fix deletes them.
+      Entities withheld from a standard account get a second one, which
+      names the account tier as the cause. The issue is recomputed after
+      every setup and after every catalogue change. The integration never
+      deletes on its own, because on a restricted account a grant change
+      looks the same as a delete.
 
   # Platinum
   async-dependency: done

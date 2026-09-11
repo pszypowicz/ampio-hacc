@@ -27,11 +27,18 @@ from homeassistant.components.button import DOMAIN as BUTTON_DOMAIN, SERVICE_PRE
 from homeassistant.const import ATTR_ENTITY_ID, STATE_UNAVAILABLE, Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
-from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.util import dt as dt_util
 
 from . import setup_integration
-from .conftest import emit, make_object, module_pinned_id, pinned_id, unique_id
+from .conftest import (
+    MSENS_IDENTIFIER,
+    emit,
+    make_object,
+    module_pinned_id,
+    pinned_id,
+    unique_id,
+)
 
 RELAY_ENTITY_ID = pinned_id("button", 150)
 FLAG_ENTITY_ID = pinned_id("button", 149)
@@ -148,10 +155,23 @@ async def test_read_only_bell_rejects_press(
 
 @pytest.mark.usefixtures("button_only")
 async def test_identify_press_lights_then_stops(
-    hass: HomeAssistant, mock_client: MagicMock, mock_config_entry: MockConfigEntry
+    hass: HomeAssistant,
+    mock_client: MagicMock,
+    mock_config_entry: MockConfigEntry,
+    device_registry: dr.DeviceRegistry,
+    entity_registry: er.EntityRegistry,
 ) -> None:
     """A press sends the identify start, and the stop follows after the hold."""
     await setup_integration(hass, mock_config_entry)
+
+    module = device_registry.async_get_device_by_identifier(
+        MSENS_IDENTIFIER, mock_config_entry.entry_id
+    )
+    assert module is not None
+    entity = entity_registry.async_get(IDENTIFY_ENTITY_ID)
+    assert entity is not None
+    assert entity.device_id == module.id
+    assert mock_config_entry.runtime_data.withheld_unique_ids() == set()
 
     await _press(hass, IDENTIFY_ENTITY_ID)
 
@@ -188,17 +208,33 @@ async def test_identify_second_press_sends_one_stop(
 
 
 @pytest.mark.usefixtures("button_only")
-async def test_identify_needs_admin(
-    hass: HomeAssistant, mock_client: MagicMock, mock_config_entry: MockConfigEntry
+async def test_identify_is_withheld_on_a_standard_account(
+    hass: HomeAssistant,
+    mock_client: MagicMock,
+    mock_config_entry: MockConfigEntry,
+    device_registry: dr.DeviceRegistry,
+    entity_registry: er.EntityRegistry,
 ) -> None:
-    """A standard login gets a message instead of a frame the server would not carry."""
+    """A standard account gets no identify entity, and keeps its module device.
+
+    The frame rides the CAN write tree, which the M-SERV serves the
+    administrator login alone. An entity that could never send it is not
+    built at all.
+    """
     mock_client.access_tier = AccessTier.RESTRICTED
+
     await setup_integration(hass, mock_config_entry)
 
-    with pytest.raises(ServiceValidationError) as excinfo:
-        await _press(hass, IDENTIFY_ENTITY_ID)
-    assert excinfo.value.translation_key == "identify_needs_admin"
-    mock_client.identify.assert_not_called()
+    assert entity_registry.async_get(IDENTIFY_ENTITY_ID) is None
+    assert hass.states.get(IDENTIFY_ENTITY_ID) is None
+    # The device is built from the Designer row, which both tiers receive.
+    module = device_registry.async_get_device_by_identifier(
+        MSENS_IDENTIFIER, mock_config_entry.entry_id
+    )
+    assert module is not None
+    assert mock_config_entry.runtime_data.withheld_unique_ids() == {
+        "module_17_identify"
+    }
 
 
 @pytest.mark.usefixtures("button_only")
