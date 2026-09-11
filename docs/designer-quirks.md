@@ -44,10 +44,10 @@ An M-CON-485 stores each Modbus reading in an integer sensor slot, and Designer 
 
 The M-SERV applies the divider before it publishes, so the integration receives the real value and adds no scale of its own. The entity reads the unit from the string format tail first, then from the Unit field. Home Assistant's own unit table then gives the device class: `A` reads current, `V` voltage, `W` and `kW` power, `Hz` frequency, and `lx` illuminance. Some units belong to two classes in that table, and the integration settles these:
 
-| Unit                    | Device class                                                                                  |
-| ----------------------- | --------------------------------------------------------------------------------------------- |
-| kWh, Wh, MWh            | energy, as a running total                                                                    |
-| °C, °F                  | temperature                                                                                   |
+| Unit                    | Device class                                                                                      |
+| ----------------------- | ------------------------------------------------------------------------------------------------- |
+| kWh, Wh, MWh            | energy, as a running total                                                                        |
+| °C, °F                  | temperature                                                                                       |
 | hPa, Pa, kPa, bar, mbar | pressure (the M-SENS barometer reads atmospheric pressure, and a generic slot is not a barometer) |
 
 Any other unit that belongs to two classes, such as `%` or `m³`, keeps the unit and gets no device class. A unit Home Assistant does not know does the same. A slot with no unit at all surfaces as a plain number with no state class, so it keeps no long-term statistics until you give it a unit.
@@ -57,6 +57,32 @@ Set the Unit field before the slot gets its entity when you can. For a slot that
 A unit change in Designer reaches the entity at once. Home Assistant writes the precision hint and the original device class into its registry at registration, so those two follow on the next reload. If you change a unit to another unit of the same quantity, such as `A` to `mA`, Home Assistant keeps showing the unit it registered first and converts the values, because it stores that first unit as the display unit at registration. Home Assistant then raises its statistics repair for that entity, because the recorded history carries the old unit. A change of the divider rescales the value, and the history keeps the old scale.
 
 The Divide by checkbox is the same mechanism that gives linear inputs their decimals, because Designer creates those with Divide by 10.
+
+## The device list numbers rows by position, not by device id
+
+The first column of Designer's device list is the row's place in the list. It is not the device id that the integration keys a module device on.
+
+The two match on an installation where no device was ever deleted, so the difference never shows. Delete a device and the server keeps the id it gave every other device, leaving a gap. Designer's list has no gap, so every device below the deleted one is drawn with a number one lower than its real id. Create a device and fill the gap, and the numbers line up again.
+
+So a number you read off that screen is not the id an object carries. It is also why a delete looks like it renumbered your devices. Nothing was renumbered. Device ids are only ever appended, and a freed id comes back only to a device with the same MAC address as the one that owned it.
+
+## Deleting an object takes two passes
+
+Removing an object from a place in Designer does not delete it. It unassigns it, and the object moves to the collapsed **UNGROUPED** section at the bottom. It still exists, it still belongs to its device, and Home Assistant still has its entity. Open UNGROUPED and delete it there to remove it.
+
+Deleting a device behaves differently again: it applies at once, with no save step, and it leaves its objects behind.
+
+Between those two, Designer can leave an object that is still shown to Home Assistant while the device it belongs to is gone. The integration handles it: that module device keeps its entities and takes the name `Ampio module 0x<MAC>`, because no catalogue row is left to name it. Finish the delete in UNGROUPED and the repair on the Settings page lists what is left over.
+
+## Designer's messages do not tell you what the server did
+
+All three cases below were seen on **virtual devices**, and each one misleads in a different direction:
+
+- **A virtual device created without an object offers no save button, and reaches the server anyway.** The device is there even though Designer never let you save it.
+- **Renaming that device fails, and says so confusingly.** The toast reads **"Device does not exist"** with **"Name updated"** underneath. The title is right and the subtitle is wrong: the name is not saved.
+- **Editing its MAC address in place can be dropped with no message at all.** On a real module the MAC edit goes through.
+
+So do not trust the toast in either direction. Refresh the Designer page instead. It asks for confirmation and then asks for the password again, even when the browser has it stored, and what it shows afterwards is what the server holds.
 
 ## The stability contract
 
