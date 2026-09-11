@@ -77,6 +77,12 @@ See [designer-quirks.md](designer-quirks.md). That page explains why Home Assist
 
 **Fix:** None is required. An empty value says only that nothing arrived from that module since the restart. Move one of its covers, or wait for one of its objects to change, and the row fills. If a light or a cover on that module still responds, the module is alive.
 
+## The Identify buttons are gone after I changed my Ampio account
+
+They are provided with the administrator login alone. The Ampio server carries the frame they send to that login and no other, so a standard account is given no such button.
+
+A repair on the Settings page lists them. Submit it to delete the records, or leave it alone. If you point the integration back at the administrator account, the buttons come back on their own with the same entity ids.
+
 ## How do I reset every Ampio entity id?
 
 Use this to move an existing install onto the current id form. The procedure deletes every Ampio entity record, so Home Assistant builds the ids again from scratch on the next start.
