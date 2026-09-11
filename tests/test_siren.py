@@ -325,8 +325,8 @@ async def test_buzz_pattern_finite_cycles_clears_state_when_the_run_elapses(
 ) -> None:
     """The state clears once delay plus every cycle's two steps has elapsed, not before.
 
-    The check before the run ends sits close to the true total, so it fails
-    if the timer used a different formula, not only if the timer is gone.
+    The bracket around the run's total is narrow, close enough that a wrong
+    formula moves the expiry outside it, not only an absent timer.
     """
     with_buzzer(mock_client)
     await setup_integration(hass, mock_config_entry)
@@ -348,10 +348,12 @@ async def test_buzz_pattern_finite_cycles_clears_state_when_the_run_elapses(
     assert hass.states.get(BUZZER_ENTITY_ID).state == "on"
 
     # The run is delay + cycles * (seconds + seconds2) = 0.5 + 3 * 1 = 3.5 s.
-    await _elapse(hass, 2.5)
+    # async_fire_time_changed adds its own fixed 0.5 s, so the elapsed
+    # argument sits 0.5 s under the simulated instant it produces.
+    await _elapse(hass, 2.9)
     assert hass.states.get(BUZZER_ENTITY_ID).state == "on"
 
-    await _elapse(hass, 4.5)
+    await _elapse(hass, 3.1)
     assert hass.states.get(BUZZER_ENTITY_ID).state == "off"
 
 
