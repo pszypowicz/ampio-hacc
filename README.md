@@ -88,6 +88,7 @@ If something else looks wrong, see [docs/faq.md](docs/faq.md). Each answer there
 ## Known limitations
 
 - Scenes are read once at setup. A scene added in the app needs a reload.
+- A module's capability map is read once at setup too. A module you add in Ampio Designer afterward gets its sensors, but not its buzzer, until you reload the integration.
 - The Entity ID format setting under Settings, then System, does not apply. Every Ampio entity carries its own id, `<domain>.ampio_<unique id>`, whether that is `ampio_obj_<object id>` for an object or `ampio_module_<row>_<name>` for a module, so the setting cannot add the area or the floor to it.
 
 ## Relationship to home-assistant/core

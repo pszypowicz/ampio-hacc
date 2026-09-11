@@ -4,7 +4,12 @@ from collections.abc import Generator
 from datetime import timedelta
 from unittest.mock import MagicMock, patch
 
-from ampio_mqtt import AccessTier, AvailabilityChanged
+from ampio_mqtt import (
+    AccessTier,
+    AmpioConnectionError,
+    AmpioTimeoutError,
+    AvailabilityChanged,
+)
 import pytest
 from pytest_homeassistant_custom_component.common import (
     MockConfigEntry,
@@ -27,6 +32,7 @@ from homeassistant.const import (
     Platform,
 )
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import entity_registry as er
 from homeassistant.util import dt as dt_util
 
@@ -125,6 +131,60 @@ async def test_turn_on_without_a_duration_latches(
 
 
 @pytest.mark.usefixtures("siren_only")
+async def test_turn_on_rejects_a_duration_past_the_ceiling(
+    hass: HomeAssistant,
+    mock_client: MagicMock,
+    mock_config_entry: MockConfigEntry,
+) -> None:
+    """A duration past the wire's per-step ceiling raises before any publish."""
+    with_buzzer(mock_client)
+    await setup_integration(hass, mock_config_entry)
+
+    with pytest.raises(ServiceValidationError) as excinfo:
+        await _turn_on(hass, **{ATTR_DURATION: MAX_STEP_SECONDS + 1})
+    assert excinfo.value.translation_key == "buzz_duration_too_long"
+    mock_client.buzz_pattern.assert_not_awaited()
+
+
+@pytest.mark.usefixtures("siren_only")
+async def test_turn_on_unknown_module_raises(
+    hass: HomeAssistant,
+    mock_client: MagicMock,
+    mock_config_entry: MockConfigEntry,
+) -> None:
+    """A module the catalogue cannot address raises, not a bare ValueError."""
+    with_buzzer(mock_client)
+    mock_client.buzz_pattern.side_effect = ValueError("module id 17 has no mac")
+    await setup_integration(hass, mock_config_entry)
+
+    with pytest.raises(HomeAssistantError) as excinfo:
+        await _turn_on(hass)
+    assert excinfo.value.translation_key == "module_not_addressable"
+    assert not isinstance(excinfo.value, ServiceValidationError)
+
+
+@pytest.mark.usefixtures("siren_only")
+@pytest.mark.parametrize(
+    "error", [AmpioConnectionError("Not connected"), AmpioTimeoutError("no ack")]
+)
+async def test_turn_on_command_failure_raises(
+    hass: HomeAssistant,
+    mock_client: MagicMock,
+    mock_config_entry: MockConfigEntry,
+    error: Exception,
+) -> None:
+    """A connection or timeout failure on the command raises its own key."""
+    with_buzzer(mock_client)
+    mock_client.buzz_pattern.side_effect = error
+    await setup_integration(hass, mock_config_entry)
+
+    with pytest.raises(HomeAssistantError) as excinfo:
+        await _turn_on(hass)
+    assert excinfo.value.translation_key == "buzzer_command_failed"
+    assert not isinstance(excinfo.value, ServiceValidationError)
+
+
+@pytest.mark.usefixtures("siren_only")
 async def test_timed_call_clears_state_when_duration_elapses(
     hass: HomeAssistant,
     mock_client: MagicMock,
@@ -169,6 +229,38 @@ async def test_turn_off_stops_the_buzzer(
 
     mock_client.buzz_stop.assert_awaited_once_with(17)
     assert hass.states.get(BUZZER_ENTITY_ID).state == "off"
+
+
+@pytest.mark.usefixtures("siren_only")
+@pytest.mark.parametrize(
+    "error",
+    [
+        AmpioConnectionError("Not connected"),
+        AmpioTimeoutError("no ack"),
+        ValueError("module id 17 has no mac"),
+    ],
+)
+async def test_turn_off_stop_failure_raises(
+    hass: HomeAssistant,
+    mock_client: MagicMock,
+    mock_config_entry: MockConfigEntry,
+    error: Exception,
+) -> None:
+    """A stop the broker does not carry raises, unlike the silent unload path."""
+    with_buzzer(mock_client)
+    await setup_integration(hass, mock_config_entry)
+    await _turn_on(hass, **{ATTR_DURATION: 5})
+    mock_client.buzz_stop.side_effect = error
+
+    with pytest.raises(HomeAssistantError) as excinfo:
+        await hass.services.async_call(
+            SIREN_DOMAIN,
+            SERVICE_TURN_OFF,
+            {ATTR_ENTITY_ID: BUZZER_ENTITY_ID},
+            blocking=True,
+        )
+    assert excinfo.value.translation_key == "buzzer_stop_failed"
+    assert not isinstance(excinfo.value, ServiceValidationError)
 
 
 @pytest.mark.usefixtures("siren_only")

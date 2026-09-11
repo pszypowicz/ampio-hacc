@@ -16,6 +16,12 @@ Do not start a procedure on this page without a backup. Some of them delete reco
 
 **Fix:** Remove the Ampio integration entry, then add it again. Home Assistant remembers a removed entity for 30 days, so the re-add restores your entity ids, your renames, and your areas. That is the supported first step, not a last resort. If the entity count is still wrong afterwards, download the diagnostics as described in [debugging.md](debugging.md) and report it in the issues.
 
+## Setup does not finish, and stays on "Retrying setup"
+
+**Check:** Open Settings, then Devices and services. The Ampio entry shows "Retrying setup" instead of its usual state, and the reason underneath reads "Connected to the Ampio server, but it did not answer the module description request." This affects the administrator login only, because a standard account never sends that request.
+
+**Fix:** None is required. The integration retries the request on its own, waiting longer between each attempt, and finishes loading as soon as the M-SERV answers. If it stays stuck for several minutes, check whether the M-SERV itself is slow to respond, mid-restart, or overloaded, and give it time to recover. If the entry still will not finish after that, download the diagnostics as described in [debugging.md](debugging.md) and report it in the issues.
+
 ## An entity is listed that Ampio Designer no longer has
 
 **Check:** Such an entity shows the state `unavailable` or the label "restored". After each start or reload the integration raises up to two repairs on the Settings page, under Repairs. One lists the devices and entities it did not build and cannot explain. The other lists the entities it withheld because your Ampio account is not the administrator one.
@@ -45,7 +51,7 @@ Open the entry, choose Reconfigure from its menu, and enter the address and the 
 
 Do not delete the integration for this. A delete removes every device record and every entity record. You lose every rename and every area with them.
 
-A different account changes what the server serves you. An app-created user receives the objects granted to it in the Ampio app, so an object outside that grant loses its entities. The repair on the Settings page lists them. Read the list before you submit it. If you move to a standard account, a second repair lists the Identify buttons it withheld, and that one is explained under "The Identify buttons are gone".
+A different account changes what the server serves you. An app-created user receives the objects granted to it in the Ampio app, so an object outside that grant loses its entities. The repair on the Settings page lists them. Read the list before you submit it. If you move to a standard account, a second repair lists the administrator-only entities it withheld, such as the Identify buttons, the module sensors, and the buzzer, and that one is explained under "The administrator-only entities are gone".
 
 If the address you enter answers with different M-SERV hardware, the flow asks you to confirm first. It names the CAN address it found. Continue only if you replaced the M-SERV, or if you meant to point Home Assistant at another one.
 
@@ -77,13 +83,13 @@ See [designer-quirks.md](designer-quirks.md). That page explains why Home Assist
 
 **Fix:** None is required. An empty value says only that nothing arrived from that module since the restart. Move one of its covers, or wait for one of its objects to change, and the row fills. If a light or a cover on that module still responds, the module is alive.
 
-## The Identify buttons are gone
+## The administrator-only entities are gone
 
-They are provided with the administrator login alone. The Ampio server carries the frame they send to that login and no other, so a standard account is given no such button.
+Several module entities are provided with the administrator login alone: the Identify button, the supply voltage and temperature sensors, and the buzzer on a module with a touch panel. The Ampio server carries the frames and the readings behind them to that login and no other, so a standard account is given none of them.
 
-Earlier releases built the button on both accounts, where a press on a standard account only ever returned an error. If you did not change anything, an update is what removed them. If you changed the account this integration uses, that removed them too.
+The Identify button once existed on both accounts, where a press on a standard account only ever returned an error. If you did not change anything, an update is what removed it. If you changed the account this integration uses, that removed it too. The sensors and the buzzer are administrator-only from their first release, so a standard account never had them to lose.
 
-A repair on the Settings page lists them. Submit it to delete the records, or leave it alone. If you point the integration back at the administrator account, the buttons come back on their own with the same entity ids.
+A repair on the Settings page lists whichever of these entities your account withholds. Submit it to delete the records, or leave it alone. If you point the integration back at the administrator account, the entities come back on their own with the same entity ids.
 
 ## My module devices are named "Ampio module 12" now
 

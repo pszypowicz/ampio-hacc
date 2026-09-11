@@ -24,6 +24,7 @@ buzz_pattern:
           mode: box
     tone2:
       example: 0
+      default: 0
       selector:
         number:
           min: 0
@@ -31,6 +32,7 @@ buzz_pattern:
           mode: box
     seconds2:
       example: 0.3
+      default: 0.0
       selector:
         number:
           min: 0
@@ -40,6 +42,7 @@ buzz_pattern:
           mode: box
     cycles:
       example: 3
+      default: 1
       selector:
         number:
           min: 0
@@ -47,6 +50,7 @@ buzz_pattern:
           mode: box
     delay:
       example: 0
+      default: 0.0
       selector:
         number:
           min: 0
