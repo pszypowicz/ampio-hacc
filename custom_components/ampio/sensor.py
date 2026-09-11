@@ -1,8 +1,17 @@
 """Sensor platform for the Ampio integration."""
 
-from typing import override
+from collections.abc import Callable
+from dataclasses import dataclass
+from typing import Final, override
 
-from ampio_mqtt import AmpioObject, OutputKind, SensorKind
+from ampio_mqtt import (
+    AmpioModule,
+    AmpioObject,
+    AvailabilityChanged,
+    ModuleUpdated,
+    OutputKind,
+    SensorKind,
+)
 
 from homeassistant.components.sensor import (
     SensorDeviceClass,
@@ -14,18 +23,20 @@ from homeassistant.const import (
     LIGHT_LUX,
     PERCENTAGE,
     EntityCategory,
+    UnitOfElectricPotential,
     UnitOfPressure,
     UnitOfRatio,
     UnitOfSoundPressure,
     UnitOfTemperature,
     UnitOfTime,
 )
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .button import is_button
-from .data import AmpioConfigEntry, AmpioData
-from .entity import AmpioEntity
+from .data import AmpioConfigEntry, AmpioData, module_identifier
+from .entity import AmpioEntity, AmpioPinnedEntity
 from .light import is_light
 from .switch import is_switch
 from .units import device_class_for, state_class_for
@@ -99,6 +110,39 @@ SENSOR_DESCRIPTIONS: dict[str, SensorEntityDescription] = {
     )
 }
 
+
+@dataclass(kw_only=True, frozen=True)
+class AmpioModuleSensorEntityDescription(SensorEntityDescription):
+    """A module sensor description that reads its own field off the module."""
+
+    value_fn: Callable[[AmpioModule], float | None]
+
+
+# The two readings a module broadcasts about itself. Both are diagnostic,
+# and both stay unknown on a module that never broadcasts: the broker does
+# not replay the frame at connect, so nothing can be inferred from silence.
+MODULE_SENSOR_DESCRIPTIONS: Final = (
+    AmpioModuleSensorEntityDescription(
+        key="voltage",
+        translation_key="supply_voltage",
+        device_class=SensorDeviceClass.VOLTAGE,
+        native_unit_of_measurement=UnitOfElectricPotential.VOLT,
+        state_class=SensorStateClass.MEASUREMENT,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        suggested_display_precision=1,
+        value_fn=lambda module: module.supply_voltage,
+    ),
+    AmpioModuleSensorEntityDescription(
+        key="temperature",
+        device_class=SensorDeviceClass.TEMPERATURE,
+        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+        state_class=SensorStateClass.MEASUREMENT,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        suggested_display_precision=0,
+        value_fn=lambda module: module.temperature,
+    ),
+)
+
 # The open key family of the integer sensor slots (bit 8, bit 16, sbit 16,
 # bit 32), the shape an M-CON-485 gives a Modbus reading. The kind fixes
 # no unit, so the entity reads the one Designer stores on the object. The
@@ -151,6 +195,14 @@ def build_sensors(data: AmpioData, obj: AmpioObject) -> list[SensorEntity]:
     return entities
 
 
+def build_module_sensors(data: AmpioData, module_id: int) -> list[AmpioModuleSensor]:
+    """The sensor platform's entities for one module device."""
+    return [
+        AmpioModuleSensor(data, module_id, description)
+        for description in MODULE_SENSOR_DESCRIPTIONS
+    ]
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: AmpioConfigEntry,
@@ -158,6 +210,9 @@ async def async_setup_entry(
 ) -> None:
     """Register the sensor platform; the runtime data builds and keeps its entities."""
     entry.runtime_data.async_add_platform(build_sensors, async_add_entities)
+    entry.runtime_data.async_add_module_platform(
+        build_module_sensors, async_add_entities, admin_only=True
+    )
 
 
 class AmpioSensor(AmpioEntity, SensorEntity):
@@ -257,3 +312,72 @@ class AmpioPulseTimeSensor(AmpioEntity, SensorEntity):
         if (obj := self._object) is None:
             return None
         return obj.pulse_ms
+
+
+class AmpioModuleSensor(AmpioPinnedEntity, SensorEntity):
+    """A reading a module broadcasts about itself.
+
+    The M-SERV serves the diagnostics broadcast to the administrator login
+    alone, so a standard account is given neither of these. A module that
+    never broadcasts reads unknown for good, which is the only honest
+    answer: the frame is not replayed at connect, so silence says nothing.
+    """
+
+    entity_description: AmpioModuleSensorEntityDescription
+
+    def __init__(
+        self,
+        data: AmpioData,
+        module_id: int,
+        description: AmpioModuleSensorEntityDescription,
+    ) -> None:
+        """Attach to the module device of Designer row ``module_id``."""
+        self._data = data
+        self._module_id = module_id
+        self._key = f"module_{module_id}_{description.key}"
+        self._attr_unique_id = self._key
+        self._attr_device_info = DeviceInfo(identifiers={module_identifier(module_id)})
+        self.entity_description = description
+
+    @override
+    async def async_added_to_hass(self) -> None:
+        """Follow the module's own broadcasts, and the connection."""
+        client = self._data.client
+        self.async_on_remove(client.subscribe(self._module_updated, of=ModuleUpdated))
+        self.async_on_remove(
+            client.subscribe(self._connection_changed, of=AvailabilityChanged)
+        )
+
+    @callback
+    def _module_updated(self, event: ModuleUpdated) -> None:
+        """Write state when this module's own diagnostics change.
+
+        The client filters a subscription by object id and nothing else, so
+        the module id is compared here.
+        """
+        if event.module.id == self._module_id:
+            self.async_write_ha_state()
+
+    @callback
+    def _connection_changed(self, event: AvailabilityChanged) -> None:
+        """Write state when the connection comes up or goes down."""
+        self.async_write_ha_state()
+
+    @property
+    @override
+    def available(self) -> bool:
+        """Available while the broker is connected."""
+        return self._data.client.available
+
+    @property
+    @override
+    def native_value(self) -> float | None:
+        """The reading, or None until the module broadcasts one.
+
+        ``.get()`` covers a row the catalogue dropped mid-session, whose
+        device the stale repair lists in the same pass.
+        """
+        module = self._data.client.modules.get(self._module_id)
+        if module is None:
+            return None
+        return self.entity_description.value_fn(module)

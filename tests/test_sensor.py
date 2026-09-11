@@ -7,8 +7,10 @@ from unittest.mock import MagicMock, patch
 from ampio_mqtt import (
     SENSOR_KIND_KEY_PREFIXES,
     SENSOR_KIND_KEYS,
+    AccessTier,
     AmpioObject,
     AvailabilityChanged,
+    ModuleUpdated,
     ObjectRemoved,
     ObjectUpdated,
 )
@@ -336,7 +338,7 @@ async def test_unexposable_objects_are_skipped(
     entities = er.async_entries_for_config_entry(
         entity_registry, mock_config_entry.entry_id
     )
-    assert len(entities) == 13
+    assert len(entities) == 15
 
 
 @pytest.mark.parametrize(
@@ -516,3 +518,78 @@ async def test_pulse_time_diagnostic(
             )
             is None
         )
+
+
+MODULE_VOLTAGE_ID = "sensor.ampio_module_17_voltage"
+MODULE_TEMPERATURE_ID = "sensor.ampio_module_17_temperature"
+
+
+@pytest.mark.usefixtures("sensor_only")
+async def test_module_sensors_read_unknown_until_a_broadcast(
+    hass: HomeAssistant,
+    mock_client: MagicMock,
+    mock_config_entry: MockConfigEntry,
+) -> None:
+    """Both exist on every module device, and read nothing until one arrives.
+
+    The broker does not replay the diagnostics frame at connect, so a
+    module that has not broadcast yet has no reading and a module that
+    never broadcasts never gets one.
+    """
+    await setup_integration(hass, mock_config_entry)
+
+    for entity_id in (MODULE_VOLTAGE_ID, MODULE_TEMPERATURE_ID):
+        state = hass.states.get(entity_id)
+        assert state is not None
+        assert state.state == STATE_UNKNOWN
+
+    mock_client.modules[17] = replace(
+        mock_client.modules[17], supply_voltage=12.4, temperature=36.0
+    )
+    emit(mock_client, ModuleUpdated(module=mock_client.modules[17]))
+    await hass.async_block_till_done()
+
+    assert hass.states.get(MODULE_VOLTAGE_ID).state == "12.4"
+    assert hass.states.get(MODULE_TEMPERATURE_ID).state == "36.0"
+
+
+@pytest.mark.usefixtures("sensor_only")
+async def test_module_sensor_ignores_another_module(
+    hass: HomeAssistant,
+    mock_client: MagicMock,
+    mock_config_entry: MockConfigEntry,
+) -> None:
+    """A broadcast from a different module leaves this one alone.
+
+    The client's subscribe filters by object id and nothing else, so each
+    sensor compares the module id itself. Module 17's own reading is set
+    without emitting anything, so a guard that fails to compare the id
+    would write it into the state a spurious event triggers.
+    """
+    await setup_integration(hass, mock_config_entry)
+
+    mock_client.modules[17] = replace(mock_client.modules[17], supply_voltage=12.4)
+    other = replace(mock_client.modules[3], supply_voltage=11.9)
+    mock_client.modules[3] = other
+    emit(mock_client, ModuleUpdated(module=other))
+    await hass.async_block_till_done()
+
+    assert hass.states.get(MODULE_VOLTAGE_ID).state == STATE_UNKNOWN
+
+
+@pytest.mark.usefixtures("sensor_only")
+async def test_module_sensors_are_withheld_on_a_standard_account(
+    hass: HomeAssistant,
+    mock_client: MagicMock,
+    mock_config_entry: MockConfigEntry,
+    entity_registry: er.EntityRegistry,
+) -> None:
+    """A standard account gets neither, and the withheld set names both."""
+    mock_client.access_tier = AccessTier.RESTRICTED
+
+    await setup_integration(hass, mock_config_entry)
+
+    assert entity_registry.async_get(MODULE_VOLTAGE_ID) is None
+    assert entity_registry.async_get(MODULE_TEMPERATURE_ID) is None
+    withheld = mock_config_entry.runtime_data.withheld_unique_ids()
+    assert {"module_17_voltage", "module_17_temperature"} <= withheld
