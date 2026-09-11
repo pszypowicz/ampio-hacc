@@ -95,6 +95,11 @@
                 "name": "Supply voltage"
             }
         },
+        "siren": {
+            "buzzer": {
+                "name": "Buzzer"
+            }
+        },
         "switch": {
             "flag": {
                 "name": "Flag"
@@ -112,7 +117,7 @@
             "message": "The Ampio server rejected the stored credentials."
         },
         "module_not_addressable": {
-            "message": "The Ampio server lists no address for this module, so the identify frame cannot be sent."
+            "message": "The Ampio server lists no address for this module, so the frame cannot be sent."
         },
         "read_only_object": {
             "message": "This object is marked read-only in Ampio Designer, and the server drops every write to it."

@@ -14,6 +14,7 @@ PLATFORMS: Final = [
     Platform.LIGHT,
     Platform.SCENE,
     Platform.SENSOR,
+    Platform.SIREN,
     Platform.SWITCH,
 ]
 

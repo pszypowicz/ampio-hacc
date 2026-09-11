@@ -17,6 +17,7 @@ from ampio_mqtt import (
     AmpioObject,
     AmpioScene,
     AmpioServerInfo,
+    ModuleFunction,
     RecordSweep,
     ThermostatState,
 )
@@ -496,3 +497,10 @@ def mock_setup_entry() -> Generator[MagicMock]:
     """Patch the entry setup so config-flow tests don't run real setup."""
     with patch("custom_components.ampio.async_setup_entry", return_value=True) as mock:
         yield mock
+
+
+def with_buzzer(client: MagicMock, module_id: int = 17) -> None:
+    """Give a seeded module the buzzer capability, as a panel reports it."""
+    client.modules[module_id] = replace(
+        client.modules[module_id], capabilities={ModuleFunction.BUZZER: 4}
+    )
