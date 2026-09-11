@@ -222,6 +222,25 @@ async def test_hub_device(
     assert module.via_device_id == hub.id
 
 
+async def test_hub_model_falls_back_when_the_catalogue_has_none(
+    hass: HomeAssistant,
+    mock_client: MagicMock,
+    mock_config_entry: MockConfigEntry,
+    device_registry: dr.DeviceRegistry,
+) -> None:
+    """An administrator whose M-SERV row resolves to no model still gets the product name."""
+    mock_client.mserv = replace(mock_client.mserv, typ_urzadzenia=99999)
+    assert mock_client.mserv.model is None
+
+    await setup_integration(hass, mock_config_entry)
+
+    hub = device_registry.async_get_device_by_identifier(
+        HUB_IDENTIFIER, mock_config_entry.entry_id
+    )
+    assert hub is not None
+    assert hub.model == "M-SERV"
+
+
 async def test_restricted_account_groups_by_module_row(
     hass: HomeAssistant,
     mock_client: MagicMock,

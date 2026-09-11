@@ -207,7 +207,7 @@ class AmpioData:
             identifiers={HUB_IDENTIFIER},
             manufacturer="Ampio",
             name="M-SERV",
-            model=mserv.model if is_admin and mserv else "M-SERV",
+            model=mserv.model if is_admin and mserv and mserv.model else "M-SERV",
             sw_version=info.server_version,
             serial_number=info.device_id,
             configuration_url=f"http://{info.local_ip}" if info.local_ip else None,
@@ -373,9 +373,7 @@ class AmpioData:
 
     def _serves(self, registration: _ModulePlatformRegistration) -> bool:
         """Whether this account is served what the registration builds."""
-        return not registration.admin_only or (
-            self.client.access_tier is AccessTier.ADMIN
-        )
+        return not registration.admin_only or self.is_admin
 
     def withheld_unique_ids(self) -> set[str]:
         """The unique ids the administrator rule withholds from this account.

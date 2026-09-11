@@ -424,21 +424,17 @@ async def test_module_without_catalogue_row_gets_bare_device(
 
 
 @pytest.mark.parametrize(
-    ("changes", "strip_leaf_ids", "expected_name", "expected_model"),
+    ("changes", "expected_name", "expected_model"),
     [
         pytest.param(
             {"nazwa_urzadzenia": None},
-            False,
             MSENS_ROW_NAME,
             "M-SENS",
             id="nameless-module",
         ),
-        # The row id is the join key now, so a catalogue mac that disagrees
-        # with the object's leaf no longer refuses the row. The row holds
-        # the current name and model, and the leaf is the stale part.
-        pytest.param(
-            {"mac": 99999}, False, "m-sens salon", "M-SENS", id="disagreeing-mac"
-        ),
+        # The catalogue row joins on the row id alone, so its name and
+        # model apply whatever address it carries.
+        pytest.param({"mac": 99999}, "m-sens salon", "M-SENS", id="disagreeing-mac"),
     ],
 )
 async def test_module_name_follows_the_catalogue(
@@ -447,17 +443,11 @@ async def test_module_name_follows_the_catalogue(
     mock_config_entry: MockConfigEntry,
     device_registry: dr.DeviceRegistry,
     changes: dict[str, int | None],
-    strip_leaf_ids: bool,
     expected_name: str,
     expected_model: str | None,
 ) -> None:
-    """A nameless row falls back to its row id. A stale mac no longer refuses it."""
+    """A nameless row falls back to its row id."""
     mock_client.modules[17] = replace(mock_client.modules[17], **changes)
-    if strip_leaf_ids:
-        mock_client.objects = {
-            oid: replace(obj, leaf_id="") if obj.id_urzadzenia == 17 else obj
-            for oid, obj in mock_client.objects.items()
-        }
 
     await setup_integration(hass, mock_config_entry)
 
