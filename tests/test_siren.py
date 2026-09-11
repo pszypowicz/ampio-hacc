@@ -10,7 +10,9 @@ from pytest_homeassistant_custom_component.common import (
     MockConfigEntry,
     async_fire_time_changed,
 )
+import voluptuous as vol
 
+from custom_components.ampio.const import DOMAIN
 from custom_components.ampio.siren import MAX_STEP_SECONDS
 from homeassistant.components.siren import (
     ATTR_DURATION,
@@ -225,3 +227,61 @@ async def test_withheld_enumeration_names_every_row(
 
     withheld = mock_config_entry.runtime_data.withheld_unique_ids()
     assert "module_17_buzzer" in withheld
+
+
+@pytest.mark.usefixtures("siren_only")
+async def test_buzz_pattern_passes_the_frame_fields(
+    hass: HomeAssistant,
+    mock_client: MagicMock,
+    mock_config_entry: MockConfigEntry,
+) -> None:
+    """Three pips are one tone, one silent rest, three cycles, in one frame."""
+    with_buzzer(mock_client)
+    await setup_integration(hass, mock_config_entry)
+
+    await hass.services.async_call(
+        DOMAIN,
+        "buzz_pattern",
+        {
+            ATTR_ENTITY_ID: BUZZER_ENTITY_ID,
+            "tone": 6,
+            "seconds": 0.3,
+            "tone2": 0,
+            "seconds2": 0.3,
+            "cycles": 3,
+        },
+        blocking=True,
+    )
+
+    mock_client.buzz_pattern.assert_awaited_once_with(
+        17, tone=6, seconds=0.3, tone2=0, seconds2=0.3, cycles=3, delay=0.0
+    )
+
+
+@pytest.mark.usefixtures("siren_only")
+@pytest.mark.parametrize(
+    "data",
+    [
+        pytest.param({"tone": 32, "seconds": 1}, id="tone-too-high"),
+        pytest.param({"tone": 6, "seconds": 1000}, id="seconds-too-long"),
+        pytest.param({"tone": 6, "seconds": 1, "cycles": 255}, id="cycles-too-many"),
+    ],
+)
+async def test_buzz_pattern_rejects_a_value_off_the_wire(
+    hass: HomeAssistant,
+    mock_client: MagicMock,
+    mock_config_entry: MockConfigEntry,
+    data: dict[str, object],
+) -> None:
+    """The schema holds each field to the range the frame accepts."""
+    with_buzzer(mock_client)
+    await setup_integration(hass, mock_config_entry)
+
+    with pytest.raises(vol.Invalid):
+        await hass.services.async_call(
+            DOMAIN,
+            "buzz_pattern",
+            {ATTR_ENTITY_ID: BUZZER_ENTITY_ID, **data},
+            blocking=True,
+        )
+    mock_client.buzz_pattern.assert_not_awaited()

@@ -175,5 +175,37 @@
         }
       }
     }
+  },
+  "services": {
+    "buzz_pattern": {
+      "name": "Play a buzzer pattern",
+      "description": "Sounds a two-step sequence on a panel's buzzer. Each cycle plays the first tone, then the second. Tone 0 is silence, so three pips are one tone, one silent step, and three cycles.",
+      "fields": {
+        "tone": {
+          "name": "Tone",
+          "description": "Pitch of the first step, 1 to 31. Tone 6 is the loudest. Tone 0 is silence."
+        },
+        "seconds": {
+          "name": "Length",
+          "description": "How long the first step sounds, in seconds."
+        },
+        "tone2": {
+          "name": "Second tone",
+          "description": "Pitch of the second step. Leave it at 0 for a silent gap."
+        },
+        "seconds2": {
+          "name": "Second length",
+          "description": "How long the second step lasts, in seconds."
+        },
+        "cycles": {
+          "name": "Cycles",
+          "description": "How many times to repeat the two steps. 0 repeats until you turn the siren off."
+        },
+        "delay": {
+          "name": "Delay",
+          "description": "How long to wait before the first step, in seconds."
+        }
+      }
+    }
   }
 }

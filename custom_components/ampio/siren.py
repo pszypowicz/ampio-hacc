@@ -11,6 +11,7 @@ from ampio_mqtt import (
     AvailabilityChanged,
     ModuleFunction,
 )
+import voluptuous as vol
 
 from homeassistant.components.siren import (
     ATTR_DURATION,
@@ -20,9 +21,11 @@ from homeassistant.components.siren import (
 )
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
+from homeassistant.helpers import entity_platform
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.event import async_call_later
+from homeassistant.helpers.typing import VolDictType
 
 from .const import DOMAIN
 from .data import AmpioConfigEntry, AmpioData, module_identifier
@@ -38,6 +41,28 @@ DEFAULT_TONE: Final = 6
 # The sequence frame's per-step ceiling, in seconds. A latched call asks
 # for one step this long and repeats it, which is a continuous tone.
 MAX_STEP_SECONDS: Final = 655.35
+
+# The sequence frame's own fields, at the ranges the wire accepts. Times
+# are 10 ms ticks on the wire, so the ceiling is 655.35 s; tone 0 is a
+# silent rest, which is what makes a pip pattern one frame.
+BUZZ_PATTERN_SCHEMA: VolDictType = {
+    vol.Required("tone"): vol.All(vol.Coerce(int), vol.Range(min=0, max=31)),
+    vol.Required("seconds"): vol.All(
+        vol.Coerce(float), vol.Range(min=0, max=MAX_STEP_SECONDS)
+    ),
+    vol.Optional("tone2", default=0): vol.All(
+        vol.Coerce(int), vol.Range(min=0, max=31)
+    ),
+    vol.Optional("seconds2", default=0.0): vol.All(
+        vol.Coerce(float), vol.Range(min=0, max=MAX_STEP_SECONDS)
+    ),
+    vol.Optional("cycles", default=1): vol.All(
+        vol.Coerce(int), vol.Range(min=0, max=254)
+    ),
+    vol.Optional("delay", default=0.0): vol.All(
+        vol.Coerce(float), vol.Range(min=0, max=MAX_STEP_SECONDS)
+    ),
+}
 
 
 def build_buzzers(data: AmpioData, module_id: int) -> list[AmpioBuzzer]:
@@ -65,6 +90,9 @@ async def async_setup_entry(
     """Register the siren platform; the runtime data builds and keeps its entities."""
     entry.runtime_data.async_add_module_platform(
         build_buzzers, async_add_entities, admin_only=True
+    )
+    entity_platform.async_get_current_platform().async_register_entity_service(
+        "buzz_pattern", BUZZ_PATTERN_SCHEMA, "async_buzz_pattern"
     )
 
 
@@ -174,6 +202,45 @@ class AmpioBuzzer(AmpioPinnedEntity, SirenEntity):
                 translation_domain=DOMAIN, translation_key="buzzer_stop_failed"
             ) from err
         self._attr_is_on = False
+        self.async_write_ha_state()
+
+    async def async_buzz_pattern(
+        self,
+        tone: int,
+        seconds: float,
+        tone2: int,
+        seconds2: float,
+        cycles: int,
+        delay: float,
+    ) -> None:
+        """Play the frame's own two-slot sequence.
+
+        Tone 0 is a silent rest, so three pips are one tone, one rest, three
+        cycles. ``cycles`` 0 repeats until a stop.
+
+        A finite sequence ends on its own, and the panel says nothing when
+        it does, so the state clears on a timer covering the whole run.
+        """
+        try:
+            await self._data.client.buzz_pattern(
+                self._module_id,
+                tone=tone,
+                seconds=seconds,
+                tone2=tone2,
+                seconds2=seconds2,
+                cycles=cycles,
+                delay=delay,
+            )
+        except ValueError as err:
+            raise HomeAssistantError(
+                translation_domain=DOMAIN, translation_key="module_not_addressable"
+            ) from err
+        self._cancel_pending_stop()
+        self._attr_is_on = True
+        if cycles:
+            self._cancel_stop = async_call_later(
+                self.hass, delay + cycles * (seconds + seconds2), self._async_expire
+            )
         self.async_write_ha_state()
 
     @callback
