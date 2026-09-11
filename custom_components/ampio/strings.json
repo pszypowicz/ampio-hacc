@@ -111,6 +111,9 @@
     "module_not_addressable": {
       "message": "The Ampio server lists no address for this module, so the identify frame cannot be sent."
     },
+    "records_unavailable": {
+      "message": "Connected to the Ampio server, but it did not answer the module description request."
+    },
     "read_only_object": {
       "message": "This object is marked read-only in Ampio Designer, and the server drops every write to it."
     }

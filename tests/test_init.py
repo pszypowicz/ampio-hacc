@@ -643,24 +643,22 @@ async def test_sweep_never_moves_an_entity(
     assert entity_registry.async_get_entity_id("light", DOMAIN, unique_id(74)) is None
 
 
-async def test_resolve_failure_degrades(
+async def test_failed_sweep_stops_setup(
     hass: HomeAssistant,
     mock_client: MagicMock,
     mock_config_entry: MockConfigEntry,
-    caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """A failed description sweep logs one warning and setup still succeeds."""
+    """The sweep is a setup input now, so a failure retries rather than degrades.
+
+    The capability map it fills decides which modules get a buzzer. A
+    background pass nobody waited for would build none of them and leave
+    their records in the wrong repair card.
+    """
     mock_client.resolve_records.side_effect = AmpioTimeoutError("no reply")
+
     await setup_integration(hass, mock_config_entry)
 
-    assert mock_config_entry.state is ConfigEntryState.LOADED
-    warnings = [
-        record
-        for record in caplog.records
-        if record.levelname == "WARNING"
-        and "Designer descriptions" in record.getMessage()
-    ]
-    assert len(warnings) == 1
+    assert mock_config_entry.state is ConfigEntryState.SETUP_RETRY
 
 
 async def test_admin_records_never_seed_an_area(

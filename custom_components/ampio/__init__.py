@@ -34,18 +34,17 @@ _LOGGER = logging.getLogger(__name__)
 async def _async_sweep_records(client: AmpioClient) -> None:
     """Fill the admin-guarded record bundles, and log what the pass covered.
 
-    The M-SERV answers one module at a time, so the pass runs as long as the
-    install is large. Its result feeds the diagnostics download alone, and a
-    module that stays silent costs that module's descriptions.
+    Two replies, the name table and the list, so the pass is one round trip
+    each rather than a walk over the modules. Setup waits for it because the
+    capability map it fills decides which modules carry a buzzer, and a
+    platform that loaded first would build none of them.
     """
     try:
         sweep = await client.resolve_records()
-    except AmpioConnectionError, AmpioTimeoutError:
-        _LOGGER.warning(
-            "Could not resolve the Designer descriptions; "
-            "the diagnostics download omits them"
-        )
-        return
+    except (AmpioConnectionError, AmpioTimeoutError) as err:
+        raise ConfigEntryNotReady(
+            translation_domain=DOMAIN, translation_key="records_unavailable"
+        ) from err
     _LOGGER.debug(
         "The Designer description sweep read %d modules and %d stayed silent",
         len(sweep.answered_macs),
@@ -110,18 +109,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: AmpioConfigEntry) -> boo
     # Home Assistant refuses the duplicate with a log line.
     entry.async_on_unload(entry.runtime_data.async_subscribe())
 
-    # The description sweep fills each object's admin-guarded record bundle,
-    # for the diagnostics download. It runs in the background, because the
-    # M-SERV answers the requests one module at a time and the pass
-    # therefore takes as long as the install is large. Nothing waits on it:
-    # the platform partition reads ``matter_device_type``, the catalogue
-    # column both tiers receive, which the sweep never touches
-    # (docs/designer-quirks.md), and a record that lands after an entity
-    # does reaches no id and no platform choice.
+    # The sweep fills each module's capability map and each object's
+    # record bundle. Setup waits for it: the capability map decides which
+    # modules carry a buzzer, and the platforms load below.
     if client.access_tier is AccessTier.ADMIN:
-        entry.async_create_background_task(
-            hass, _async_sweep_records(client), "ampio_resolve_records"
-        )
+        await _async_sweep_records(client)
 
     was_unavailable = False
 
