@@ -116,6 +116,20 @@
         }
     },
     "issues": {
+        "admin_only_records": {
+            "title": "Ampio entities for administrators only",
+            "fix_flow": {
+                "abort": {
+                    "not_loaded": "The Ampio integration is not loaded. Load it, then try again."
+                },
+                "step": {
+                    "confirm": {
+                        "title": "Delete the administrator-only Ampio entities",
+                        "description": "Home Assistant still lists {count} Ampio entities that the Ampio server serves to the administrator login alone. This integration now uses a standard Ampio account:\n\n{names}\n\nThey come back on their own, with the same entity ids, if you point the integration back at the administrator account. Submit deletes these records from Home Assistant instead. Automations and dashboards that name them stop working. Nothing changes on the Ampio server."
+                    }
+                }
+            }
+        },
         "stale_records_deleted": {
             "title": "Ampio records to clean up",
             "fix_flow": {

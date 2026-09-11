@@ -7,13 +7,13 @@ from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import issue_registry as ir
 
-from .const import DOMAIN
+from .const import ADMIN_ONLY_RECORDS_ISSUE, DOMAIN
 from .data import AmpioConfigEntry
 from .stale import async_remove_stale_records
 
 
 class StaleRecordsRepairFlow(RepairsFlow):
-    """Confirm, then delete the records the last setup left unclaimed."""
+    """Confirm, then delete the records the issue that opened this flow names."""
 
     def __init__(self, entry: AmpioConfigEntry) -> None:
         """Bind the flow to the one Ampio entry."""
@@ -37,8 +37,12 @@ class StaleRecordsRepairFlow(RepairsFlow):
         if self._entry.state is not ConfigEntryState.LOADED:
             return self.async_abort(reason="not_loaded")
         if user_input is not None:
-            async_remove_stale_records(self.hass, self._entry)
-            self.hass.config_entries.async_schedule_reload(self._entry.entry_id)
+            async_remove_stale_records(self.hass, self._entry, self.issue_id)
+            if self.issue_id != ADMIN_ONLY_RECORDS_ISSUE:
+                # A moved object's child is rebuilt under its new parent.
+                # A withheld record rebuilds nothing: the account is still
+                # a standard one, so its entities stay withheld.
+                self.hass.config_entries.async_schedule_reload(self._entry.entry_id)
             return self.async_create_entry(data={})
         issue = ir.async_get(self.hass).async_get_issue(DOMAIN, self.issue_id)
         return self.async_show_form(
