@@ -1,5 +1,6 @@
 """Config flow for the Ampio integration."""
 
+from collections.abc import Mapping
 import logging
 from typing import Any, override
 
@@ -11,7 +12,12 @@ from ampio_mqtt import (
 )
 import voluptuous as vol
 
-from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
+from homeassistant.config_entries import (
+    SOURCE_REAUTH,
+    ConfigEntry,
+    ConfigFlow,
+    ConfigFlowResult,
+)
 from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_USERNAME
 
 from .const import DEFAULT_HOST, DOMAIN
@@ -76,6 +82,71 @@ class AmpioConfigFlow(ConfigFlow, domain=DOMAIN):
             step_id="user",
             data_schema=self.add_suggested_values_to_schema(
                 STEP_USER_DATA_SCHEMA, user_input or {CONF_HOST: DEFAULT_HOST}
+            ),
+            errors=errors,
+        )
+
+    async def async_step_reauth(
+        self, entry_data: Mapping[str, Any]
+    ) -> ConfigFlowResult:
+        """Answer the credential rejection the running entry reported."""
+        return await self.async_step_reauth_confirm()
+
+    async def async_step_reauth_confirm(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Take the credentials to use after a rejection."""
+        return await self._async_step_credentials(user_input, "reauth_confirm")
+
+    async def async_step_reconfigure(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Take a new address or a new account for the entry."""
+        return await self._async_step_credentials(user_input, "reconfigure")
+
+    def _entry_for_source(self) -> ConfigEntry:
+        """The entry this flow belongs to, per its source.
+
+        Both core helpers raise when the source does not match, so the
+        branch is what keeps them apart.
+        """
+        if self.source == SOURCE_REAUTH:
+            return self._get_reauth_entry()
+        return self._get_reconfigure_entry()
+
+    async def _async_step_credentials(
+        self, user_input: dict[str, Any] | None, step_id: str
+    ) -> ConfigFlowResult:
+        """Point the entry at a host and an account, from one shared form.
+
+        The reauth dialog and the reconfigure dialog differ in their step
+        id alone, which is what gives each its own title and description.
+        The entry id does not move, so the reload keeps every device
+        record and every entity record.
+        """
+        entry = self._entry_for_source()
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            info, errors = await self._async_check(user_input)
+            if info is not None:
+                return self.async_update_reload_and_abort(
+                    entry,
+                    unique_id=info.server_key,
+                    data_updates=user_input,
+                    title=user_input[CONF_HOST],
+                )
+
+        # The first form offers what the entry holds, minus the password.
+        # A retry after an error offers what the user submitted, as the
+        # user step does.
+        suggested = user_input or {
+            CONF_HOST: entry.data[CONF_HOST],
+            CONF_USERNAME: entry.data[CONF_USERNAME],
+        }
+        return self.async_show_form(
+            step_id=step_id,
+            data_schema=self.add_suggested_values_to_schema(
+                STEP_USER_DATA_SCHEMA, suggested
             ),
             errors=errors,
         )

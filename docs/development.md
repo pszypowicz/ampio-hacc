@@ -39,4 +39,4 @@ docker run --rm -v "$PWD":/github/workspace ghcr.io/home-assistant/hassfest
 
 ## The secrets hook
 
-`betterleaks` scans the staged changes for hardcoded secrets. The config-flow strings in `custom_components/ampio/translations/en.json` contain the word `password`, and a rewrite of that file trips the scan. Edit the file in place and keep its indentation. Do not regenerate it.
+`betterleaks` scans the staged changes for hardcoded secrets. `.gitleaks.toml` exempts the translation files and the config-flow tests. Home Assistant's translation schema fixes the `password` field key and its English label, and the tests carry throwaway account literals. Neither is a credential. Every other path is scanned in full.
