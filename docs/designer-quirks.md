@@ -76,11 +76,11 @@ Between those two, Designer can leave an object that is still shown to Home Assi
 
 ## Designer's messages do not tell you what the server did
 
-Three cases, and each one misleads in a different direction:
+All three cases below were seen on **virtual devices**, and each one misleads in a different direction:
 
-- **A device created without an object offers no save button, and reaches the server anyway.** The device is there even though Designer never let you save it.
+- **A virtual device created without an object offers no save button, and reaches the server anyway.** The device is there even though Designer never let you save it.
 - **Renaming that device fails, and says so confusingly.** The toast reads **"Device does not exist"** with **"Name updated"** underneath. The title is right and the subtitle is wrong: the name is not saved.
-- **Editing a virtual device's MAC address in place can be dropped with no message at all.** On a real module the edit goes through.
+- **Editing its MAC address in place can be dropped with no message at all.** On a real module the MAC edit goes through.
 
 So do not trust the toast in either direction. Refresh the Designer page instead. It asks for confirmation and then asks for the password again, even when the browser has it stored, and what it shows afterwards is what the server holds.
 
