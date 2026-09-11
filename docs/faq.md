@@ -33,6 +33,22 @@ To delete a single record by hand instead:
 
 If the "Delete" button is not offered, the integration still creates that entity. Check Ampio Designer before you go further.
 
+## I changed my Ampio password
+
+Home Assistant notices on its own. The entry stops, and a notification asks you to sign in again. Open it, enter the new password, and submit.
+
+To change the password before it breaks, open the entry, choose Reconfigure from its menu, and enter the new one.
+
+## I want to use a different Ampio account, or I replaced my M-SERV
+
+Open the entry, choose Reconfigure from its menu, and enter the address and the credentials to use. Your devices and your entities keep their ids, their names, and their areas.
+
+Do not delete the integration for this. A delete removes every device record and every entity record. You lose every rename and every area with them.
+
+A different account changes what the server serves you. An app-created user receives the objects granted to it in the Ampio app, so an object outside that grant loses its entities. The repair on the Settings page lists them. Read the list before you submit it.
+
+If the address you enter answers with different M-SERV hardware, the flow asks you to confirm first. It names the CAN address it found. Continue only if you replaced the M-SERV, or if you meant to point Home Assistant at another one.
+
 ## My entity ids look different from the ones in the docs
 
 **Check:** Open Settings, then Devices and services, then Entities, and search for `ampio`. The current form is `<domain>.ampio_obj_<object id>`, for example `light.ampio_obj_7`. An install that predates a change of the form keeps its older ids.
