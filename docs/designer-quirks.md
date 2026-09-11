@@ -74,15 +74,15 @@ Deleting a device behaves differently again: it applies at once, with no save st
 
 Between those two, Designer can leave an object that is still shown to Home Assistant while the device it belongs to is gone. The integration handles it: that module device keeps its entities and takes the name `Ampio module 0x<MAC>`, because no catalogue row is left to name it. Finish the delete in UNGROUPED and the repair on the Settings page lists what is left over.
 
-## Designer sometimes reports a failure that did not happen
+## Designer's messages do not tell you what the server did
 
-Three messages are worth ignoring, because the server may already have done the work:
+Three cases, and each one misleads in a different direction:
 
-- Creating a device without an object offers no save button, and the device can still reach the server.
-- Renaming a device Designer thinks is unsaved shows **"Device does not exist"** while the name is applied.
-- Editing a device's MAC address in place may be silently dropped.
+- **A device created without an object offers no save button, and reaches the server anyway.** The device is there even though Designer never let you save it.
+- **Renaming that device fails, and says so confusingly.** The toast reads **"Device does not exist"** with **"Name updated"** underneath. The title is right and the subtitle is wrong: the name is not saved.
+- **Editing a device's MAC address in place is dropped with no message at all.**
 
-Refresh the Designer page when a change does not look like it took. The page asks for confirmation and then asks for the password again, even when the browser has it stored. What the page shows after that refresh is what the server holds.
+So do not trust the toast in either direction. Refresh the Designer page instead. It asks for confirmation and then asks for the password again, even when the browser has it stored, and what it shows afterwards is what the server holds.
 
 ## The stability contract
 
