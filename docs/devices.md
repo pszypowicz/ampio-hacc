@@ -18,7 +18,7 @@ One M-SERV per Home Assistant. Object ids are unique per server only, so the int
 
 ## Names
 
-An object device takes the name you gave the object in the Ampio app. A module takes the name you gave it in Ampio Designer. When your account is not an administrator one, a module reads `Ampio module 0x<MAC>` instead. The hub is always `M-SERV`.
+An object device takes the name you gave the object in the Ampio app. A module takes the name you gave it in Ampio Designer. When your account is not an administrator one, a module reads `Ampio module <row>` instead, where the row is its number in Ampio Designer. The hub is always `M-SERV`.
 
 A rename in Designer or in the app changes nothing in Home Assistant. Rename the device in Home Assistant instead.
 
@@ -28,6 +28,14 @@ Each module device has an Identify button. A press lights the module's CAN LED f
 
 The module keeps the LED lit until it receives a stop. The integration sends the stop after 30 s, and again at once when you reload or remove the integration. If Home Assistant restarts during those 30 s, the stop is never sent. Then the LED stays lit until Ampio Designer sends a stop or the module restarts.
 
+## The module sensors
+
+Each module device also carries two diagnostic sensors, a supply voltage and a temperature, both readings the module reports about itself. They exist with the administrator login alone, for the same reason as the Identify button. A module that never sends that reading leaves its sensor unknown rather than unavailable, because the reading is not replayed at connect and silence says nothing about the module's health.
+
+## The buzzer
+
+A module with a touch panel also gets a siren entity for its buzzer, on the administrator login alone. Turning it on sounds a single tone for a single length. The `ampio.buzz_pattern` action reaches the two-tone sequences the buzzer also supports, described in the Actions section of the project README.
+
 ## Areas
 
 An object device takes the object's app room as its area when Home Assistant creates it. After that the area is yours. The integration never moves a device.
@@ -36,7 +44,7 @@ Home Assistant matches rooms to areas by name. If your Ampio rooms and your area
 
 ## Entity ids
 
-Rename the devices and assign the areas to suit yourself. Nothing you do there moves an entity id. Home Assistant normally builds an id from the area and the device name. An Ampio entity carries its own instead: `<domain>.ampio_obj_<object id>`, the same string as its unique id. The ids are not pretty, and they never change. Your automations keep working through a rename, an area move, an Ampio account tier change, and an M-SERV replacement alike.
+Rename the devices and assign the areas to suit yourself. Nothing you do there moves an entity id. Home Assistant normally builds an id from the area and the device name. An Ampio entity carries its own instead, the same string as its unique id. An entity backed by an Ampio object reads `<domain>.ampio_obj_<object id>`, for example `light.ampio_obj_7`. An entity that belongs to a module device instead reads `<domain>.ampio_module_<row>_<name>`, for example `button.ampio_module_12_identify`. The ids are not pretty, and they never change. Your automations keep working through a rename, an area move, an Ampio account tier change, and an M-SERV replacement alike.
 
 See [faq.md](faq.md) for what an update does to an entity id, and for the reset procedure.
 

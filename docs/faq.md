@@ -51,7 +51,7 @@ If the address you enter answers with different M-SERV hardware, the flow asks y
 
 ## My entity ids look different from the ones in the docs
 
-**Check:** Open Settings, then Devices and services, then Entities, and search for `ampio`. The current form is `<domain>.ampio_obj_<object id>`, for example `light.ampio_obj_7`. An install that predates a change of the form keeps its older ids.
+**Check:** Open Settings, then Devices and services, then Entities, and search for `ampio`. The current form is `<domain>.ampio_obj_<object id>` for an object's entity, for example `light.ampio_obj_7`, or `<domain>.ampio_module_<row>_<name>` for a module's, for example `button.ampio_module_12_identify`. An install that predates a change of the form keeps its older ids.
 
 **Fix:** None is required. Both forms work, and nothing forces you to change. A release can change the form for a fresh install, and every existing install keeps the ids it has. If you want the current form on an existing install, use the reset procedure below. It is a support procedure, and no update requires it.
 
@@ -84,6 +84,12 @@ They are provided with the administrator login alone. The Ampio server carries t
 Earlier releases built the button on both accounts, where a press on a standard account only ever returned an error. If you did not change anything, an update is what removed them. If you changed the account this integration uses, that removed them too.
 
 A repair on the Settings page lists them. Submit it to delete the records, or leave it alone. If you point the integration back at the administrator account, the buttons come back on their own with the same entity ids.
+
+## My module devices are named "Ampio module 12" now
+
+Only on a standard Ampio account. The names you gave your modules in Ampio Designer are served to the administrator login alone, so an update replaced a name built from the module's address with its row number in Designer. That row is where the module was named in the first place, and it is still the same device you have always had.
+
+A name you typed yourself in Home Assistant is untouched, and no entity id moved. On an administrator account nothing changed.
 
 ## How do I reset every Ampio entity id?
 
