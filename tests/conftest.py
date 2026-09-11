@@ -52,10 +52,10 @@ MSERV_MAC = "47846"
 # Designer row id, an object is its Designer id.
 HUB_IDENTIFIER = (DOMAIN, "hub")
 MSENS_IDENTIFIER = (DOMAIN, "module:17")
-# The module device is named from the admin-only module catalogue, and it
-# falls back to the leaf-embedded mac that both account tiers receive.
+# The module device is named from the admin-only module catalogue, and a
+# standard account reads its Designer row id instead.
 MSENS_DEVICE_NAME = "m-sens salon"
-MSENS_MAC_NAME = "Ampio module 0xCB8F"
+MSENS_ROW_NAME = "Ampio module 17"
 
 
 def unique_id(oid: int, suffix: str = "") -> str:
@@ -459,22 +459,6 @@ def mock_client_class() -> Generator[MagicMock]:
         client.fetch_scenes.return_value = list(DEFAULT_SCENES)
         client.fetch_rooms.return_value = dict(DEFAULT_ROOMS)
         client.resolve_records.return_value = EMPTY_SWEEP
-
-        # Mirrors AmpioClient.module_for over the seeded catalogue: join by
-        # id_urzadzenia, and where the object carries a leaf mac, drop a row
-        # whose mac disagrees. A leafless object has no mac to gate on, so
-        # its join stands.
-        def module_for(obj: AmpioObject) -> AmpioModule | None:
-            if obj.id_urzadzenia is None:
-                return None
-            module = client.modules.get(obj.id_urzadzenia)
-            if module is None:
-                return None
-            if obj.module_mac is not None and module.mac != obj.module_mac:
-                return None
-            return module
-
-        client.module_for.side_effect = module_for
 
         # Track live registrations so unsubscribing works: emit() must not
         # reach listeners from a torn-down setup. Unsubscribing is idempotent,

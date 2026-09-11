@@ -11,7 +11,6 @@ from ampio_mqtt import (
     AccessTier,
     AmpioClient,
     AmpioConnectionError,
-    AmpioModule,
     AmpioObject,
     AmpioServerInfo,
     ObjectRemoved,
@@ -130,25 +129,6 @@ def _opt_str(value: object | None) -> str | None:
     return None if value is None else str(value)
 
 
-def _module_name(module: AmpioModule | None, mac: int | None, module_id: int) -> str:
-    """Name a module device: the installer's own name, the mac, or the row.
-
-    ``nazwa_urzadzenia`` is the name the installer gave the module in Ampio
-    Designer, and the module catalogue that carries it answers the
-    administrator login alone. A restricted account is served the
-    leaf-embedded mac instead, and a module whose objects all lost their
-    leaf is left with its Designer row id. So this name follows the account
-    tier. Nothing depends on it: ``AmpioPinnedEntity`` pins the entity id, so a
-    name that changes on a tier switch renames the device in the interface
-    and moves no id.
-    """
-    if module is not None and module.nazwa_urzadzenia:
-        return module.nazwa_urzadzenia
-    if mac is not None:
-        return f"Ampio module 0x{mac:X}"
-    return f"Ampio module {module_id}"
-
-
 class AmpioData:
     """Runtime data for one Ampio server: the device tree the catalogue defines.
 
@@ -170,6 +150,11 @@ class AmpioData:
         self.hass = hass
         self.entry = entry
         self.client = client
+        # The tier is fixed at client construction from the login name, so
+        # it cannot change while an entry is loaded. Every site reads this
+        # instead of testing whether an administrator-only field happens to
+        # be populated.
+        self.is_admin = client.access_tier is AccessTier.ADMIN
         # Registry ids the object child devices parent to: the hub, and one
         # module device per Designer module row.
         self.hub_device_id = hub_device_id
@@ -215,25 +200,26 @@ class AmpioData:
         # install and its catalogue row names it no better. The row
         # decorates the model.
         device_registry = dr.async_get(hass)
+        is_admin = client.access_tier is AccessTier.ADMIN
         mserv = client.mserv
         hub = device_registry.async_get_or_create(
             config_entry_id=entry.entry_id,
             identifiers={HUB_IDENTIFIER},
             manufacturer="Ampio",
             name="M-SERV",
-            model=mserv.model if mserv and mserv.model else "M-SERV",
+            model=mserv.model if is_admin and mserv else "M-SERV",
             sw_version=info.server_version,
             serial_number=info.device_id,
             configuration_url=f"http://{info.local_ip}" if info.local_ip else None,
         )
 
         # The M-SERV's own row is read off the objects that name it, because
-        # both tiers receive those; the admin-only catalogue row answers only
-        # when the account is served no server-owned object at all. Reading
-        # the catalogue first would build one tree for an administrator and
-        # another for a restricted account wherever the two disagree. A split
-        # vote goes to the row most objects name, and ties to the first one
-        # seen.
+        # both tiers receive those. Reading the admin catalogue instead would
+        # build one tree for an administrator and another for a standard
+        # account wherever the two disagree, and a server-owned object
+        # reaches the hub through ``is_server_owned`` without this value. A
+        # split vote goes to the row most objects name, and ties to the first
+        # one seen.
         server_rows = Counter(
             obj.id_urzadzenia
             for obj in eligible_objects(client)
@@ -242,24 +228,17 @@ class AmpioData:
         mserv_id: int | None = None
         if server_rows:
             mserv_id = server_rows.most_common(1)[0][0]
-        elif mserv is not None:
-            mserv_id = mserv.id
         data = cls(hass, entry, client, hub.id, mserv_id)
 
         # One device per Designer module row, registered before the
-        # platforms load. One object per row stands for it: the first in
-        # catalogue order that carries a leaf mac, which is both the mac that
-        # names the row and the mac the catalogue join is gated on. A row
-        # whose objects have all lost their leaf keeps the first object it
-        # saw and joins ungated.
+        # platforms load. The first eligible object on a row stands for it;
+        # every object carries the row id, so any of them will do.
         module_reps: dict[int, AmpioObject] = {}
         for obj in eligible_objects(client):
             module_id = obj.id_urzadzenia
             if obj.is_server_owned or module_id is None or module_id == mserv_id:
                 continue
-            rep = module_reps.get(module_id)
-            if rep is None or (rep.module_mac is None and obj.module_mac is not None):
-                module_reps[module_id] = obj
+            module_reps.setdefault(module_id, obj)
         for rep in module_reps.values():
             data.ensure_module_device(rep)
 
@@ -275,6 +254,26 @@ class AmpioData:
             )
         return data
 
+    def _module_name(self, module_id: int) -> str:
+        """The installer's name when the catalogue has one, else the row.
+
+        ``nazwa_urzadzenia`` comes from the module catalogue, which answers
+        the administrator login alone, so this name follows the account
+        tier. Nothing depends on it: ``AmpioPinnedEntity`` pins the entity
+        id, so a name that changes on a tier switch renames the device in
+        the interface and moves no id.
+
+        The lookup tolerates a missing row. Ampio Designer deletes a device
+        at once and only unassigns its objects into a collapsed UNGROUPED
+        section, so between those two steps a visible object sits on a row
+        with no catalogue entry.
+        """
+        if self.is_admin:
+            module = self.client.modules.get(module_id)
+            if module is not None and module.nazwa_urzadzenia:
+                return module.nazwa_urzadzenia
+        return f"Ampio module {module_id}"
+
     @callback
     def ensure_module_device(self, obj: AmpioObject) -> int | None:
         """Create the module device of the object's row, unless it exists.
@@ -286,11 +285,8 @@ class AmpioData:
         The row id rides every object on both account tiers, so the tree
         holds still across a tier change. The admin catalogue names the
         module and decorates the model, the versions, and the serial; a
-        restricted account falls back to the leaf-embedded mac in the name.
-        None of those reaches an entity id. DB ids are volatile across a
-        Designer resync while the leaf mac is the hardware identity, so the
-        library's join drops a row whose mac disagrees with the leaf, and
-        such a row decorates nothing.
+        standard account gets the row id in the name and no decoration.
+        None of those reaches an entity id.
         """
         module_id = obj.id_urzadzenia
         if (
@@ -300,11 +296,11 @@ class AmpioData:
             or module_id in self.module_device_ids
         ):
             return None
-        module = self.client.module_for(obj)
+        module = self.client.modules.get(module_id) if self.is_admin else None
         device = dr.async_get(self.hass).async_get_or_create(
             config_entry_id=self.entry.entry_id,
             identifiers={module_identifier(module_id)},
-            name=_module_name(module, obj.module_mac, module_id),
+            name=self._module_name(module_id),
             manufacturer="Ampio",
             via_device_id=self.hub_device_id,
             model=module.model if module else None,

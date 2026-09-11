@@ -34,7 +34,7 @@ from . import setup_integration
 from .conftest import (
     HUB_IDENTIFIER,
     MSENS_IDENTIFIER,
-    MSENS_MAC_NAME,
+    MSENS_ROW_NAME,
     emit,
     make_object,
     pinned_id,
@@ -409,7 +409,7 @@ async def test_module_without_catalogue_row_gets_bare_device(
         (DOMAIN, "module:99"), mock_config_entry.entry_id
     )
     assert device is not None
-    assert device.name == "Ampio module 0xDEAD"
+    assert device.name == "Ampio module 99"
     assert device.model is None
     entity_id = entity_registry.async_get_entity_id(
         Platform.SENSOR, DOMAIN, unique_id(500)
@@ -429,28 +429,19 @@ async def test_module_without_catalogue_row_gets_bare_device(
         pytest.param(
             {"nazwa_urzadzenia": None},
             False,
-            MSENS_MAC_NAME,
+            MSENS_ROW_NAME,
             "M-SENS",
             id="nameless-module",
         ),
-        # The device_id join key is volatile across resyncs; the leaf-derived
-        # mac is authoritative, so a disagreeing row must not misattribute
-        # another module's metadata to this device.
-        pytest.param({"mac": 99999}, False, MSENS_MAC_NAME, None, id="disagreeing-mac"),
-        # Designer cleared the leaf on every object of the row, so no mac is
-        # left to name the device and the row id is what remains. The
-        # catalogue join still stands: it is gated on a leaf mac the objects
-        # no longer carry.
+        # The row id is the join key now, so a catalogue mac that disagrees
+        # with the object's leaf no longer refuses the row. The row holds
+        # the current name and model, and the leaf is the stale part.
         pytest.param(
-            {"nazwa_urzadzenia": None},
-            True,
-            "Ampio module 17",
-            "M-SENS",
-            id="no-leaf-mac",
+            {"mac": 99999}, False, "m-sens salon", "M-SENS", id="disagreeing-mac"
         ),
     ],
 )
-async def test_module_name_falls_back_to_mac(
+async def test_module_name_follows_the_catalogue(
     hass: HomeAssistant,
     mock_client: MagicMock,
     mock_config_entry: MockConfigEntry,
@@ -460,7 +451,7 @@ async def test_module_name_falls_back_to_mac(
     expected_name: str,
     expected_model: str | None,
 ) -> None:
-    """A row that names nothing leaves the device on its mac, then on its row id."""
+    """A nameless row falls back to its row id. A stale mac no longer refuses it."""
     mock_client.modules[17] = replace(mock_client.modules[17], **changes)
     if strip_leaf_ids:
         mock_client.objects = {
@@ -476,6 +467,33 @@ async def test_module_name_falls_back_to_mac(
     assert device is not None
     assert device.name == expected_name
     assert device.model == expected_model
+
+
+@pytest.mark.usefixtures("sensor_only")
+async def test_module_row_missing_from_the_catalogue(
+    hass: HomeAssistant,
+    mock_client: MagicMock,
+    mock_config_entry: MockConfigEntry,
+    device_registry: dr.DeviceRegistry,
+) -> None:
+    """A visible object on a row the catalogue lacks still gets its device.
+
+    Ampio Designer deletes a device at once and only unassigns its objects
+    into a collapsed UNGROUPED section, so a visible object can point at a
+    row that no longer exists. The device takes the row id and no
+    decoration, rather than costing the whole setup.
+    """
+    del mock_client.modules[17]
+
+    await setup_integration(hass, mock_config_entry)
+
+    module = device_registry.async_get_device_by_identifier(
+        MSENS_IDENTIFIER, mock_config_entry.entry_id
+    )
+    assert module is not None
+    assert module.name == MSENS_ROW_NAME
+    assert module.model is None
+    assert module.serial_number is None
 
 
 async def test_pulse_time_diagnostic(

@@ -44,7 +44,7 @@ from .conftest import (
     HUB_IDENTIFIER,
     MSENS_DEVICE_NAME,
     MSENS_IDENTIFIER,
-    MSENS_MAC_NAME,
+    MSENS_ROW_NAME,
     MSERV_MAC,
     USER_INPUT,
     emit,
@@ -233,9 +233,9 @@ async def test_restricted_account_groups_by_module_row(
 
     A standard (non-administrator) account is served the object catalogue
     but no module list. The device tree builds from the Designer module row
-    id, and the module device falls back to a mac-derived name. Only the
-    name and the metadata differ from the administrator tier, and neither
-    reaches an entity id.
+    id, and the module device falls back to that row id as its name. Only
+    the name and the metadata differ from the administrator tier, and
+    neither reaches an entity id.
     """
     mock_client.modules = {}
     mock_client.mserv = None
@@ -256,7 +256,7 @@ async def test_restricted_account_groups_by_module_row(
         MSENS_IDENTIFIER, mock_config_entry.entry_id
     )
     assert module is not None
-    assert module.name == MSENS_MAC_NAME
+    assert module.name == MSENS_ROW_NAME
     assert module.model is None
     assert module.via_device_id == hub.id
 
@@ -341,7 +341,7 @@ async def test_tier_switch_keeps_entity_ids(
     )
     assert downgraded is not None
     assert downgraded.id == module.id
-    assert downgraded.name == MSENS_MAC_NAME
+    assert downgraded.name == MSENS_ROW_NAME
     assert downgraded.model is None
     assert {
         entity.entity_id: entity.device_id

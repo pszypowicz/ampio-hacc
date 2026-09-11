@@ -164,7 +164,7 @@ async def test_new_module_row_gets_a_device_on_a_restricted_account(
     assert hub is not None
     assert module is not None
     assert child is not None
-    assert module.name == "Ampio module 0xD009"
+    assert module.name == "Ampio module 21"
     assert module.via_device_id == hub.id
     assert child.parent_device_id == module.id
     assert hass.states.get(NEW_INPUT_ENTITY_ID).state == STATE_OFF
