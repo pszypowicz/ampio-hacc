@@ -42,7 +42,7 @@ Requires Home Assistant 2026.9.0 or newer. `ampio-mqtt` is installed automatical
 2. In Home Assistant, go to Settings -> Devices & Services -> Add Integration -> Ampio.
 3. Enter the M-SERV host and that user's MQTT credentials.
 
-To change the address, the account, or the password later, open the entry and choose Reconfigure from its menu. Your devices and your entities keep their ids, their names, and their areas. If the Ampio server rejects the stored password, Home Assistant asks you for a new one on its own.
+To change the address, the account, or the password later, open the entry and choose Reconfigure from its menu. Your devices and your entities keep their ids, their areas, and any name you gave them yourself. If the Ampio server rejects the stored password, Home Assistant asks you for a new one on its own.
 
 Devices appear as a hub for the M-SERV, one device per Ampio module, and one device per Ampio object under its module. An object device takes its name and its area from the Ampio app when Home Assistant creates it, and the integration never moves it afterwards. Every entity carries the id `<domain>.ampio_obj_<object id>`, and that id never changes. See [docs/devices.md](docs/devices.md) for the names, the areas, and what a change in Ampio Designer does.
 

@@ -1,18 +1,20 @@
 # betterleaks reads this file (it also accepts .betterleaks.toml). Every
-# default rule stays on; the allowlist below exempts three paths.
+# default rule stays on; the allowlist below exempts four paths.
 #
 # Home Assistant's translation schema fixes both the `password` field key
 # and its English label, so `"password": "Password"` is required text in
 # every translation file and cannot be reworded. JSON carries no comments,
-# so the inline allow marker cannot reach those lines. The config-flow
-# tests carry throwaway account literals for the same reason.
+# so the inline allow marker cannot reach those lines. The test suite and
+# its snapshots carry throwaway account literals and redacted values for
+# the same reason.
 [extend]
 useDefault = true
 
 [allowlist]
-description = "Translation field labels and config-flow test literals are not credentials"
+description = "Translation field labels and test literals are not credentials"
 paths = [
   '''custom_components/ampio/strings\.json''',
   '''custom_components/ampio/translations/.*\.json''',
-  '''tests/test_config_flow\.py''',
+  '''tests/.*\.py''',
+  '''tests/snapshots/.*\.ambr''',
 ]

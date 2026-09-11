@@ -98,8 +98,7 @@ async def test_reconfigure_keeps_devices_and_entity_ids(
     """
     await setup_integration(hass, mock_config_entry)
     before = _registry_ids(device_registry, entity_registry, mock_config_entry)
-    cred = "rotated"
-    moved = {**USER_INPUT, CONF_USERNAME: "admin", CONF_PASSWORD: cred}
+    moved = {**USER_INPUT, CONF_USERNAME: "admin", CONF_PASSWORD: "rotated"}
 
     result = await mock_config_entry.start_reconfigure_flow(hass)
     result = await hass.config_entries.flow.async_configure(result["flow_id"], moved)

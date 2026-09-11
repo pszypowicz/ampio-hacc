@@ -41,7 +41,7 @@ To change the password before it breaks, open the entry, choose Reconfigure from
 
 ## I want to use a different Ampio account, or I replaced my M-SERV
 
-Open the entry, choose Reconfigure from its menu, and enter the address and the credentials to use. Your devices and your entities keep their ids, their names, and their areas.
+Open the entry, choose Reconfigure from its menu, and enter the address and the credentials to use. Your devices and your entities keep their ids, their areas, and any name you gave them yourself.
 
 Do not delete the integration for this. A delete removes every device record and every entity record. You lose every rename and every area with them.
 
