@@ -1,5 +1,6 @@
 """Registry records a setup left unclaimed, and the repair that removes them."""
 
+from collections.abc import Iterable
 from dataclasses import dataclass
 
 from ampio_mqtt import AccessTier
@@ -30,18 +31,23 @@ class StaleRecords:
         """True while anything is left to delete."""
         return bool(self.devices or self.entities)
 
-    @property
-    def names(self) -> list[str]:
-        """What the user sees for each record, sorted for the issue text."""
-        names = [
-            device.name_by_user or device.name or next(iter(device.identifiers))[1]
-            for device in self.devices
-        ]
-        names.extend(
-            entity.name or entity.original_name or entity.entity_id
-            for entity in self.entities
-        )
-        return sorted(names, key=str.casefold)
+
+def _record_names(
+    devices: Iterable[dr.AnyDeviceEntry], entities: Iterable[er.RegistryEntry]
+) -> list[str]:
+    """What the issue text lists for each record, sorted.
+
+    A device carries a name. An entity carries its pinned entity id
+    instead: that is the string an automation names, it never collides
+    with another entity of the same kind, and it cannot go stale inside a
+    stored issue the way a renamed device can.
+    """
+    names = [
+        device.name_by_user or device.name or next(iter(device.identifiers))[1]
+        for device in devices
+    ]
+    names.extend(entity.entity_id for entity in entities)
+    return sorted(names, key=str.casefold)
 
 
 @callback
@@ -112,7 +118,7 @@ def async_report_stale_records(hass: HomeAssistant, entry: AmpioConfigEntry) -> 
     if not stale:
         ir.async_delete_issue(hass, DOMAIN, STALE_RECORDS_ISSUE)
         return
-    names = stale.names
+    names = _record_names(stale.devices, stale.entities)
     if entry.runtime_data.client.access_tier is AccessTier.ADMIN:
         translation_key = "stale_records_deleted"
     else:

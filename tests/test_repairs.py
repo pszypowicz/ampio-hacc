@@ -67,7 +67,7 @@ async def test_stale_records_raise_a_fixable_issue(
     assert issue.translation_key == "stale_records_deleted"
     assert issue.translation_placeholders == {
         "count": "3",
-        "names": "- Object 74\n- Taras LED\n- Wieczór",
+        "names": "- Object 74\n- scene.m_serv_wieczor\n- Taras LED",
     }
 
 
