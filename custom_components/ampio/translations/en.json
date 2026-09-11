@@ -1,7 +1,9 @@
 {
     "config": {
         "abort": {
-            "already_configured": "Device is already configured"
+            "already_configured": "Device is already configured",
+            "reauth_successful": "Re-authentication was successful",
+            "reconfigure_successful": "Reconfiguration was successful"
         },
         "error": {
             "cannot_connect": "Failed to connect",
@@ -9,6 +11,38 @@
             "unknown": "Unexpected error"
         },
         "step": {
+            "confirm_server": {
+                "description": "The server at {host} is not the one this integration was set up with. It reports CAN address {mac}.\n\nContinue only if you replaced your M-SERV, or if you meant to point this integration at another one. Your devices and your entities keep their ids, their areas, and any name you gave them yourself. They bind to the objects of the new server's Designer project.",
+                "title": "A different Ampio server"
+            },
+            "reauth_confirm": {
+                "data": {
+                    "host": "Host",
+                    "password": "Password",
+                    "username": "Username"
+                },
+                "data_description": {
+                    "host": "Hostname or IP address of the Ampio server (M-SERV).",
+                    "password": "Your Ampio account password.",
+                    "username": "Your Ampio account username."
+                },
+                "description": "The Ampio server rejected the stored credentials for {name}. Enter the credentials to use.",
+                "title": "Re-authenticate Ampio"
+            },
+            "reconfigure": {
+                "data": {
+                    "host": "Host",
+                    "password": "Password",
+                    "username": "Username"
+                },
+                "data_description": {
+                    "host": "Hostname or IP address of the Ampio server (M-SERV).",
+                    "password": "Your Ampio account password.",
+                    "username": "Your Ampio account username."
+                },
+                "description": "Change the address or the account this integration uses. Your devices and your entities keep their ids, their areas, and any name you gave them yourself.",
+                "title": "Reconfigure Ampio"
+            },
             "user": {
                 "data": {
                     "host": "Host",

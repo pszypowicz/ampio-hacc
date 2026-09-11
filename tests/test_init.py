@@ -20,9 +20,17 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.ampio import async_remove_config_entry_device
 from custom_components.ampio.const import DOMAIN
-from homeassistant.config_entries import ConfigEntryState
-from homeassistant.const import EVENT_HOMEASSISTANT_STOP, STATE_ON, STATE_UNAVAILABLE
+from homeassistant.config_entries import SOURCE_REAUTH, ConfigEntryState
+from homeassistant.const import (
+    CONF_HOST,
+    CONF_PASSWORD,
+    CONF_USERNAME,
+    EVENT_HOMEASSISTANT_STOP,
+    STATE_ON,
+    STATE_UNAVAILABLE,
+)
 from homeassistant.core import HomeAssistant
+from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.helpers import (
     area_registry as ar,
     device_registry as dr,
@@ -44,6 +52,68 @@ from .conftest import (
     pinned_id,
     unique_id,
 )
+
+
+def _registry_ids(
+    device_registry: dr.DeviceRegistry,
+    entity_registry: er.EntityRegistry,
+    entry: MockConfigEntry,
+) -> tuple[set[str], set[str]]:
+    """Every device id and entity id the entry holds right now.
+
+    Full devices and child devices come from two different registry
+    readers, so a set built from one alone would miss half the tree.
+    """
+    devices = {
+        device.id
+        for device in dr.async_entries_for_config_entry(device_registry, entry.entry_id)
+    }
+    devices |= {
+        child.id
+        for child in dr.async_child_entries_for_config_entry(
+            device_registry, entry.entry_id
+        )
+    }
+    entities = {
+        entity.entity_id
+        for entity in er.async_entries_for_config_entry(entity_registry, entry.entry_id)
+    }
+    return devices, entities
+
+
+async def test_reconfigure_keeps_devices_and_entity_ids(
+    hass: HomeAssistant,
+    mock_client: MagicMock,
+    mock_client_class: MagicMock,
+    mock_config_entry: MockConfigEntry,
+    device_registry: dr.DeviceRegistry,
+    entity_registry: er.EntityRegistry,
+) -> None:
+    """A credential change through the flow moves no device and no entity id.
+
+    This is what the flow exists for. A delete and a fresh add drops every
+    record instead. The first three assertions prove that setup really
+    re-ran with the new credentials, so that the fourth one means
+    something.
+    """
+    await setup_integration(hass, mock_config_entry)
+    before = _registry_ids(device_registry, entity_registry, mock_config_entry)
+    moved = {**USER_INPUT, CONF_USERNAME: "admin", CONF_PASSWORD: "rotated"}
+
+    result = await mock_config_entry.start_reconfigure_flow(hass)
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], moved)
+    await hass.async_block_till_done()
+
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "reconfigure_successful"
+    assert dict(mock_config_entry.data) == moved
+    assert mock_client_class.call_args.args == (
+        moved[CONF_HOST],
+        moved[CONF_USERNAME],
+        moved[CONF_PASSWORD],
+    )
+    assert mock_client.connect.await_count == 2
+    assert _registry_ids(device_registry, entity_registry, mock_config_entry) == before
 
 
 async def test_setup_and_unload(
@@ -331,7 +401,9 @@ async def test_runtime_auth_failure_reloads_into_auth_error(
 
     The library's reconnect loop stops for good on an unauthorized reconnect;
     the integration schedules a reload, whose setup then raises
-    ConfigEntryAuthFailed and lands the entry in SETUP_ERROR.
+    ConfigEntryAuthFailed and lands the entry in SETUP_ERROR. The flow handler
+    now carries async_step_reauth, so core offers the user a way back instead
+    of leaving the entry stuck.
     """
     await setup_integration(hass, mock_config_entry)
     mock_client.connect.side_effect = AmpioAuthError("credentials changed")
@@ -342,6 +414,9 @@ async def test_runtime_auth_failure_reloads_into_auth_error(
     assert "reloading" in caplog.text
     assert mock_config_entry.state is ConfigEntryState.SETUP_ERROR
     assert mock_config_entry.error_reason_translation_key == "invalid_auth"
+    # The flow handler now carries async_step_reauth, so core offers the
+    # user a way back instead of leaving the entry stuck.
+    assert list(mock_config_entry.async_get_active_flows(hass, {SOURCE_REAUTH}))
 
 
 async def test_connection_died_reloads_and_recovers(

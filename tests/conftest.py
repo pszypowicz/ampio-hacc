@@ -7,6 +7,7 @@ the same public surface the library exposes: the state properties and the
 """
 
 from collections.abc import Generator
+from dataclasses import replace
 from typing import Any
 from unittest.mock import MagicMock, patch
 
@@ -101,6 +102,11 @@ SERVER_INFO = AmpioServerInfo(
     local_ip="10.0.0.1",
     device_id="0011223344556677",
 )
+
+# A second M-SERV, for the flow that re-points an entry at other hardware.
+# 52990 is 0xCEFE, which is what the confirmation step prints.
+OTHER_MSERV_MAC = "52990"
+OTHER_SERVER_INFO = replace(SERVER_INFO, mac=52990)
 
 
 def make_object(
