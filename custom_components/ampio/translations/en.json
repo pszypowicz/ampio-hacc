@@ -11,6 +11,10 @@
             "unknown": "Unexpected error"
         },
         "step": {
+            "confirm_server": {
+                "description": "The server at {host} is not the one this integration was set up with. It reports CAN address {mac}.\n\nContinue only if you replaced your M-SERV, or if you meant to point this integration at another one. Your devices and your entities keep their ids, their names, and their areas. They bind to the objects of the new server's Designer project.",
+                "title": "A different Ampio server"
+            },
             "reauth_confirm": {
                 "data": {
                     "host": "Host",

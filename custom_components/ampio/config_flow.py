@@ -36,6 +36,11 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
 class AmpioConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Ampio."""
 
+    # Carried from the credentials step to the server confirmation.
+    _pending_input: dict[str, Any]
+    _pending_key: str
+    _pending_mac: int
+
     async def _async_check(
         self, user_input: dict[str, Any]
     ) -> tuple[AmpioServerInfo | None, dict[str, str]]:
@@ -129,6 +134,11 @@ class AmpioConfigFlow(ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             info, errors = await self._async_check(user_input)
             if info is not None:
+                if entry.unique_id is not None and entry.unique_id != info.server_key:
+                    self._pending_input = user_input
+                    self._pending_key = info.server_key
+                    self._pending_mac = info.mac
+                    return await self.async_step_confirm_server()
                 return self.async_update_reload_and_abort(
                     entry,
                     unique_id=info.server_key,
@@ -149,4 +159,30 @@ class AmpioConfigFlow(ConfigFlow, domain=DOMAIN):
                 STEP_USER_DATA_SCHEMA, suggested
             ),
             errors=errors,
+        )
+
+    async def async_step_confirm_server(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Confirm a re-key before the entry follows another M-SERV.
+
+        The entry's identities carry no server mac, so the records all
+        survive and bind to the objects of the new server's Designer
+        project. The step names the new mac alone: the stored one is only
+        held as ``server_key``, whose format must not be parsed.
+        """
+        if user_input is None:
+            return self.async_show_form(
+                step_id="confirm_server",
+                data_schema=vol.Schema({}),
+                description_placeholders={
+                    "host": self._pending_input[CONF_HOST],
+                    "mac": f"0x{self._pending_mac:X}",
+                },
+            )
+        return self.async_update_reload_and_abort(
+            self._entry_for_source(),
+            unique_id=self._pending_key,
+            data_updates=self._pending_input,
+            title=self._pending_input[CONF_HOST],
         )
