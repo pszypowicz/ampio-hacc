@@ -155,10 +155,23 @@ async def test_read_only_bell_rejects_press(
 
 @pytest.mark.usefixtures("button_only")
 async def test_identify_press_lights_then_stops(
-    hass: HomeAssistant, mock_client: MagicMock, mock_config_entry: MockConfigEntry
+    hass: HomeAssistant,
+    mock_client: MagicMock,
+    mock_config_entry: MockConfigEntry,
+    device_registry: dr.DeviceRegistry,
+    entity_registry: er.EntityRegistry,
 ) -> None:
     """A press sends the identify start, and the stop follows after the hold."""
     await setup_integration(hass, mock_config_entry)
+
+    module = device_registry.async_get_device_by_identifier(
+        MSENS_IDENTIFIER, mock_config_entry.entry_id
+    )
+    assert module is not None
+    entity = entity_registry.async_get(IDENTIFY_ENTITY_ID)
+    assert entity is not None
+    assert entity.device_id == module.id
+    assert mock_config_entry.runtime_data.withheld_unique_ids() == set()
 
     await _press(hass, IDENTIFY_ENTITY_ID)
 

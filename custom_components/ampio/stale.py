@@ -1,4 +1,4 @@
-"""Registry records a setup left unclaimed, and the repair that removes them."""
+"""Registry records a setup left unclaimed, and the repairs that remove them."""
 
 from collections.abc import Iterable
 from dataclasses import dataclass

@@ -57,7 +57,7 @@ async def async_create_fix_flow(
     issue_id: str,
     data: dict[str, str | int | float | None] | None,
 ) -> RepairsFlow:
-    """Create the fix flow for the stale-records issue.
+    """Create the fix flow for whichever repair issue opened it.
 
     One config entry is allowed, so the issue names none. The flow aborts
     on its own when that entry is not loaded.

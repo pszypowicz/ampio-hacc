@@ -389,6 +389,14 @@ class AmpioData:
         withheld record apart from one Ampio Designer really dropped. The
         factories run here exactly as they would have, so the two can never
         disagree.
+
+        The bare ids returned here are safe to match against an entity's
+        unique id only because Home Assistant scopes a unique id per
+        platform domain and config entry, and every module factory
+        namespaces its keys on ``module_`` while every object entity
+        namespaces on ``obj_``. A factory that dropped that prefix could
+        collide with another domain's unique id and this method would not
+        tell the two apart.
         """
         return {
             uid

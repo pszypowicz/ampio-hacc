@@ -145,22 +145,25 @@ async def test_disabled_entity_is_not_stale(
     assert issue_registry.async_get_issue(DOMAIN, ISSUE_ID) is None
 
 
-async def test_removing_the_entry_clears_the_issue(
+async def test_removing_the_entry_clears_both_issues(
     hass: HomeAssistant,
     mock_client: MagicMock,
     mock_config_entry: MockConfigEntry,
     issue_registry: ir.IssueRegistry,
 ) -> None:
-    """The records go with the entry, so the issue has nothing left to fix."""
+    """The records go with the entry, so neither issue has anything left to fix."""
     await setup_integration(hass, mock_config_entry)
     _leave_records_behind(mock_client)
+    mock_client.access_tier = AccessTier.RESTRICTED
     await _reload(hass, mock_config_entry)
     assert issue_registry.async_get_issue(DOMAIN, ISSUE_ID) is not None
+    assert issue_registry.async_get_issue(DOMAIN, ADMIN_ISSUE_ID) is not None
 
     await hass.config_entries.async_remove(mock_config_entry.entry_id)
     await hass.async_block_till_done()
 
     assert issue_registry.async_get_issue(DOMAIN, ISSUE_ID) is None
+    assert issue_registry.async_get_issue(DOMAIN, ADMIN_ISSUE_ID) is None
 
 
 async def test_fix_flow_removes_the_stale_records(
@@ -232,15 +235,7 @@ async def test_fix_flow_removes_a_module_without_objects(
     assert "- m-sens salon\n" in names
     assert "Identify" not in names
 
-    client = await hass_client()
-    flow = await (
-        await client.post(
-            "/api/repairs/issues/fix", json={"handler": DOMAIN, "issue_id": ISSUE_ID}
-        )
-    ).json()
-    resp = await client.post(f"/api/repairs/issues/fix/{flow['flow_id']}", json={})
-    assert (await resp.json())["type"] == "create_entry"
-    await hass.async_block_till_done()
+    await _submit_fix(hass, hass_client, ISSUE_ID)
 
     entry_id = mock_config_entry.entry_id
     assert (
