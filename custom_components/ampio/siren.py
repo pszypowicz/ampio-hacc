@@ -181,6 +181,10 @@ class AmpioBuzzer(AmpioPinnedEntity, SirenEntity):
             raise HomeAssistantError(
                 translation_domain=DOMAIN, translation_key="module_not_addressable"
             ) from err
+        except (AmpioConnectionError, AmpioTimeoutError) as err:
+            raise HomeAssistantError(
+                translation_domain=DOMAIN, translation_key="buzzer_command_failed"
+            ) from err
         self._cancel_pending_stop()
         self._attr_is_on = True
         if duration is not None:
@@ -234,6 +238,10 @@ class AmpioBuzzer(AmpioPinnedEntity, SirenEntity):
         except ValueError as err:
             raise HomeAssistantError(
                 translation_domain=DOMAIN, translation_key="module_not_addressable"
+            ) from err
+        except (AmpioConnectionError, AmpioTimeoutError) as err:
+            raise HomeAssistantError(
+                translation_domain=DOMAIN, translation_key="buzzer_command_failed"
             ) from err
         self._cancel_pending_stop()
         self._attr_is_on = True

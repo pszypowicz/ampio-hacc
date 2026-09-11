@@ -265,6 +265,11 @@ async def test_buzz_pattern_passes_the_frame_fields(
         pytest.param({"tone": 32, "seconds": 1}, id="tone-too-high"),
         pytest.param({"tone": 6, "seconds": 1000}, id="seconds-too-long"),
         pytest.param({"tone": 6, "seconds": 1, "cycles": 255}, id="cycles-too-many"),
+        pytest.param({"tone": 6, "seconds": 1, "tone2": 32}, id="tone2-too-high"),
+        pytest.param(
+            {"tone": 6, "seconds": 1, "seconds2": 1000}, id="seconds2-too-long"
+        ),
+        pytest.param({"tone": 6, "seconds": 1, "delay": 1000}, id="delay-too-long"),
     ],
 )
 async def test_buzz_pattern_rejects_a_value_off_the_wire(
@@ -273,7 +278,12 @@ async def test_buzz_pattern_rejects_a_value_off_the_wire(
     mock_config_entry: MockConfigEntry,
     data: dict[str, object],
 ) -> None:
-    """The schema holds each field to the range the frame accepts."""
+    """The schema holds each field to the range the frame accepts.
+
+    Each case leaves every other field valid, so a case fails only when the
+    range on its own named field is gone, not when some other field's range
+    happens to catch the same out-of-bounds request.
+    """
     with_buzzer(mock_client)
     await setup_integration(hass, mock_config_entry)
 
@@ -285,3 +295,83 @@ async def test_buzz_pattern_rejects_a_value_off_the_wire(
             blocking=True,
         )
     mock_client.buzz_pattern.assert_not_awaited()
+
+
+@pytest.mark.usefixtures("siren_only")
+async def test_buzz_pattern_defaults_cycles_to_one(
+    hass: HomeAssistant,
+    mock_client: MagicMock,
+    mock_config_entry: MockConfigEntry,
+) -> None:
+    """Omitting ``cycles`` sends one pass, not the latch that zero asks for."""
+    with_buzzer(mock_client)
+    await setup_integration(hass, mock_config_entry)
+
+    await hass.services.async_call(
+        DOMAIN,
+        "buzz_pattern",
+        {ATTR_ENTITY_ID: BUZZER_ENTITY_ID, "tone": 6, "seconds": 0.3},
+        blocking=True,
+    )
+
+    assert mock_client.buzz_pattern.await_args.kwargs["cycles"] == 1
+
+
+@pytest.mark.usefixtures("siren_only")
+async def test_buzz_pattern_finite_cycles_clears_state_when_the_run_elapses(
+    hass: HomeAssistant,
+    mock_client: MagicMock,
+    mock_config_entry: MockConfigEntry,
+) -> None:
+    """The state clears once delay plus every cycle's two steps has elapsed, not before.
+
+    The check before the run ends sits close to the true total, so it fails
+    if the timer used a different formula, not only if the timer is gone.
+    """
+    with_buzzer(mock_client)
+    await setup_integration(hass, mock_config_entry)
+
+    await hass.services.async_call(
+        DOMAIN,
+        "buzz_pattern",
+        {
+            ATTR_ENTITY_ID: BUZZER_ENTITY_ID,
+            "tone": 6,
+            "seconds": 0.4,
+            "tone2": 6,
+            "seconds2": 0.6,
+            "cycles": 3,
+            "delay": 0.5,
+        },
+        blocking=True,
+    )
+    assert hass.states.get(BUZZER_ENTITY_ID).state == "on"
+
+    # The run is delay + cycles * (seconds + seconds2) = 0.5 + 3 * 1 = 3.5 s.
+    await _elapse(hass, 2.5)
+    assert hass.states.get(BUZZER_ENTITY_ID).state == "on"
+
+    await _elapse(hass, 4.5)
+    assert hass.states.get(BUZZER_ENTITY_ID).state == "off"
+
+
+@pytest.mark.usefixtures("siren_only")
+async def test_buzz_pattern_cycles_zero_leaves_it_on_with_no_timer(
+    hass: HomeAssistant,
+    mock_client: MagicMock,
+    mock_config_entry: MockConfigEntry,
+) -> None:
+    """``cycles`` 0 repeats until a stop, so no timer ever clears the state."""
+    with_buzzer(mock_client)
+    await setup_integration(hass, mock_config_entry)
+
+    await hass.services.async_call(
+        DOMAIN,
+        "buzz_pattern",
+        {ATTR_ENTITY_ID: BUZZER_ENTITY_ID, "tone": 6, "seconds": 0.3, "cycles": 0},
+        blocking=True,
+    )
+    assert hass.states.get(BUZZER_ENTITY_ID).state == "on"
+
+    await _elapse(hass, 100000)
+    assert hass.states.get(BUZZER_ENTITY_ID).state == "on"

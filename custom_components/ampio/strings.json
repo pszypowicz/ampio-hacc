@@ -110,6 +110,9 @@
     "buzz_duration_too_long": {
       "message": "A buzzer pattern step cannot last longer than {maximum} seconds."
     },
+    "buzzer_command_failed": {
+      "message": "The Ampio server did not confirm the buzzer command."
+    },
     "buzzer_stop_failed": {
       "message": "The Ampio server did not confirm the buzzer stop, so the panel may still be sounding."
     },
@@ -183,11 +186,11 @@
       "fields": {
         "tone": {
           "name": "Tone",
-          "description": "Pitch of the first step, 1 to 31. Tone 6 is the loudest. Tone 0 is silence."
+          "description": "Pitch of the first step, 0 to 31. Tone 6 is the loudest, and tone 0 is silence."
         },
         "seconds": {
           "name": "Length",
-          "description": "How long the first step sounds, in seconds."
+          "description": "How long the first step sounds, in seconds, up to 655.35."
         },
         "tone2": {
           "name": "Second tone",
@@ -195,15 +198,15 @@
         },
         "seconds2": {
           "name": "Second length",
-          "description": "How long the second step lasts, in seconds."
+          "description": "How long the second step lasts, in seconds, up to 655.35."
         },
         "cycles": {
           "name": "Cycles",
-          "description": "How many times to repeat the two steps. 0 repeats until you turn the siren off."
+          "description": "How many times to repeat the two steps, up to 254. 0 repeats until you turn the siren off."
         },
         "delay": {
           "name": "Delay",
-          "description": "How long to wait before the first step, in seconds."
+          "description": "How long to wait before the first step, in seconds, up to 655.35."
         }
       }
     }
