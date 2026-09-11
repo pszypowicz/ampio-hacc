@@ -8,6 +8,7 @@ import logging
 from typing import Final
 
 from ampio_mqtt import (
+    AccessTier,
     AmpioClient,
     AmpioConnectionError,
     AmpioModule,
@@ -117,10 +118,11 @@ type ModuleEntityFactory = Callable[[AmpioData, int], Iterable[Entity]]
 
 @dataclass(frozen=True)
 class _ModulePlatformRegistration:
-    """One platform's module factory, and the platform that holds what it built."""
+    """One platform's module factory, and whether the account tier gates it."""
 
     platform: EntityPlatform
     factory: ModuleEntityFactory
+    admin_only: bool = False
 
 
 def _opt_str(value: object | None) -> str | None:
@@ -349,21 +351,53 @@ class AmpioData:
         self,
         factory: ModuleEntityFactory,
         async_add_entities: AddConfigEntryEntitiesCallback,
+        *,
+        admin_only: bool = False,
     ) -> None:
         """Register a module factory, and build its entities for every module device.
 
         Valid inside the platform's ``async_setup_entry`` alone, where Home
         Assistant sets the current platform. A module device the tree meets
         later is built through the platform recorded here.
+
+        ``admin_only`` marks a factory whose entities reach a surface the
+        M-SERV serves the administrator login alone. A standard account is
+        not given them at all, because an entity that can never do its job
+        is worse than no entity.
         """
         registration = _ModulePlatformRegistration(
-            async_get_current_platform(), factory
+            async_get_current_platform(), factory, admin_only
         )
         self._module_platforms.append(registration)
         entities: list[Entity] = []
-        for module_id in self.module_device_ids:
-            entities.extend(factory(self, module_id))
+        if self._serves(registration):
+            for module_id in self.module_device_ids:
+                entities.extend(factory(self, module_id))
         async_add_entities(entities)
+
+    def _serves(self, registration: _ModulePlatformRegistration) -> bool:
+        """Whether this account is served what the registration builds."""
+        return not registration.admin_only or (
+            self.client.access_tier is AccessTier.ADMIN
+        )
+
+    def withheld_unique_ids(self) -> set[str]:
+        """The unique ids the administrator rule withholds from this account.
+
+        Empty on the administrator login. On a standard account it is every
+        id the gated factories would have built, which is what tells a
+        withheld record apart from one Ampio Designer really dropped. The
+        factories run here exactly as they would have, so the two can never
+        disagree.
+        """
+        return {
+            uid
+            for registration in self._module_platforms
+            if not self._serves(registration)
+            for module_id in self.module_device_ids
+            for entity in registration.factory(self, module_id)
+            if (uid := entity.unique_id) is not None
+        }
 
     def _expected_entities(
         self, registration: _PlatformRegistration, obj: AmpioObject | None
@@ -503,6 +537,8 @@ class AmpioData:
             # A module device the batch created owes the module platforms
             # their entities, awaited for the same reason as the objects.
             for module_registration in self._module_platforms:
+                if not self._serves(module_registration):
+                    continue
                 module_entities = [
                     entity
                     for row in new_rows

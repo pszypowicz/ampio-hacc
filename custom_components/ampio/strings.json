@@ -105,9 +105,6 @@
     "discovery_timeout": {
       "message": "Connected to the Ampio server, but it did not finish reporting its configuration."
     },
-    "identify_needs_admin": {
-      "message": "Identify is available with the administrator login only. This integration is set up with a standard Ampio account."
-    },
     "invalid_auth": {
       "message": "The Ampio server rejected the stored credentials."
     },
