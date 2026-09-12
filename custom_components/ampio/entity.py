@@ -157,10 +157,10 @@ class AmpioEntity(AmpioPinnedEntity):
 class AmpioModuleEntity(AmpioPinnedEntity):
     """Entity that attaches to a module device rather than to an object.
 
-    The key is the Designer row id, which every object carries on both
-    account tiers, so it holds still across a tier change. Availability
-    reads no further than the connection, because the surfaces these
-    entities drive confirm nothing on the bus.
+    The key is the Designer row id. An object carries that same id in its
+    own ``id_urzadzenia`` field on both account tiers, which is how the row
+    id survives a tier change. No module entity has a per-entity readback,
+    so availability can only track the connection.
     """
 
     def __init__(self, data: AmpioData, module_id: int, *, key_suffix: str) -> None:
