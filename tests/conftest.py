@@ -116,7 +116,7 @@ def make_object(
     interpretacja: int,
     *,
     leaf_id: str,
-    id_urzadzenia: int | None = 17,
+    id_urzadzenia: int = 17,
     funkcja: int = 1,
     opis_menu: str | None = None,
     state: str | None = None,

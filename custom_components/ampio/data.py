@@ -219,9 +219,7 @@ class AmpioData:
         # split vote goes to the row most objects name, and ties to the first
         # one seen.
         server_rows = Counter(
-            obj.id_urzadzenia
-            for obj in eligible_objects(client)
-            if obj.is_server_owned and obj.id_urzadzenia is not None
+            obj.id_urzadzenia for obj in eligible_objects(client) if obj.is_server_owned
         )
         mserv_id: int | None = None
         if server_rows:
@@ -234,7 +232,7 @@ class AmpioData:
         module_reps: dict[int, AmpioObject] = {}
         for obj in eligible_objects(client):
             module_id = obj.id_urzadzenia
-            if obj.is_server_owned or module_id is None or module_id == mserv_id:
+            if obj.is_server_owned or module_id == mserv_id:
                 continue
             module_reps.setdefault(module_id, obj)
         for rep in module_reps.values():
@@ -309,7 +307,6 @@ class AmpioData:
         module_id = obj.id_urzadzenia
         if (
             obj.is_server_owned
-            or module_id is None
             or module_id == self.mserv_id
             or module_id in self.module_device_ids
         ):
@@ -588,7 +585,7 @@ class AmpioData:
         M-SERV's own objects sit on the hub.
         """
         module_id = obj.id_urzadzenia
-        if obj.is_server_owned or module_id is None or module_id == self.mserv_id:
+        if obj.is_server_owned or module_id == self.mserv_id:
             return self.hub_device_id
         return self.module_device_ids.get(module_id, self.hub_device_id)
 
@@ -606,7 +603,7 @@ class AmpioData:
         expected_parent: dict[tuple[str, str], str] = {}
         for obj in eligible_objects(self.client):
             parent = self.parent_for(obj)
-            if parent != self.hub_device_id and obj.id_urzadzenia is not None:
+            if parent != self.hub_device_id:
                 live.add(module_identifier(obj.id_urzadzenia))
             live.add((DOMAIN, obj.object_key))
             expected_parent[(DOMAIN, obj.object_key)] = parent
