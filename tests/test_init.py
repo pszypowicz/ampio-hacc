@@ -82,6 +82,35 @@ def _registry_ids(
     return devices, entities
 
 
+def _full_map(
+    device_registry: dr.DeviceRegistry,
+    entity_registry: er.EntityRegistry,
+    entry: MockConfigEntry,
+) -> tuple[dict[str, str | None], dict[str, tuple[str, str | None]]]:
+    """Every device's parent link and every entity's unique id and device, right now.
+
+    A full device (the hub, a module) reports its parent through
+    ``via_device_id``. A child device (an object) reports it through
+    ``parent_device_id``. Both come from separate registry readers, so a map
+    built from one alone would miss half the tree.
+    """
+    devices: dict[str, str | None] = {
+        device.id: device.via_device_id
+        for device in dr.async_entries_for_config_entry(device_registry, entry.entry_id)
+    }
+    devices |= {
+        child.id: child.parent_device_id
+        for child in dr.async_child_entries_for_config_entry(
+            device_registry, entry.entry_id
+        )
+    }
+    entities = {
+        entity.entity_id: (entity.unique_id, entity.device_id)
+        for entity in er.async_entries_for_config_entry(entity_registry, entry.entry_id)
+    }
+    return devices, entities
+
+
 async def test_reconfigure_keeps_devices_and_entity_ids(
     hass: HomeAssistant,
     mock_client: MagicMock,
@@ -300,18 +329,22 @@ async def test_restricted_account_groups_by_module_row(
     assert len([entity for entity in entities if entity.domain == "scene"]) == 1
 
 
-async def test_tier_switch_keeps_entity_ids(
+async def test_empty_catalogue_moves_no_device_or_entity_id(
     hass: HomeAssistant,
     mock_client: MagicMock,
     mock_config_entry: MockConfigEntry,
     device_registry: dr.DeviceRegistry,
     entity_registry: er.EntityRegistry,
 ) -> None:
-    """An entry keeps its devices and its entity ids across tier switches.
+    """An empty module catalogue moves no device and no entity id.
 
-    The admin module catalogue names the device and decorates the model, so
-    the name follows the tier in both directions. Every entity id holds
-    still, because the integration pins it and no name composes it.
+    The account tier stays ADMIN through every phase here; only the
+    catalogue empties and refills, the way a row can drop out of the
+    catalogue mid-session while a visible object still points at it. The
+    catalogue names the device and decorates the model, so the name follows
+    the catalogue in both directions, but the device and every entity id
+    hold still regardless, because the integration pins the id and no name
+    composes it.
     """
     admin_modules = mock_client.modules
     admin_mserv = mock_client.mserv
@@ -367,6 +400,34 @@ async def test_tier_switch_keeps_entity_ids(
             entity_registry, mock_config_entry.entry_id
         )
     } == entity_devices
+
+
+async def test_tier_switch_keeps_the_full_device_and_entity_map(
+    hass: HomeAssistant,
+    mock_client: MagicMock,
+    mock_config_entry: MockConfigEntry,
+    device_registry: dr.DeviceRegistry,
+    entity_registry: er.EntityRegistry,
+) -> None:
+    """A downgrade and the upgrade back hold every entity id, unique id, and device parent.
+
+    ``set_access_tier`` denies the module catalogue the way the library
+    does, so this puts the tier gate itself under test, not a catalogue that
+    merely happens to be empty. No name or model an account tier can see may
+    move an entity id, a unique id, or a device's parent link.
+    """
+    await setup_integration(hass, mock_config_entry)
+    baseline = _full_map(device_registry, entity_registry, mock_config_entry)
+
+    set_access_tier(mock_client, AccessTier.RESTRICTED)
+    await hass.config_entries.async_reload(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
+    assert _full_map(device_registry, entity_registry, mock_config_entry) == baseline
+
+    set_access_tier(mock_client, AccessTier.ADMIN)
+    await hass.config_entries.async_reload(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
+    assert _full_map(device_registry, entity_registry, mock_config_entry) == baseline
 
 
 async def test_user_names_never_reach_an_entity_id(

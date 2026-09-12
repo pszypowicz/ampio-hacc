@@ -431,7 +431,7 @@ def emit(client: MagicMock, event: Any) -> None:
         listener(event)
 
 
-# The two client reads the M-SERV serves the administrator login alone. A
+# The two client reads the M-SERV serves to the administrator login alone. A
 # plain attribute on a mock reads as an empty catalogue, which is the state
 # the library stopped allowing, so the mock raises the way the library does.
 GATED_ON_ADMIN: Final = ("modules", "mserv")
@@ -490,10 +490,8 @@ def mock_client_class() -> Generator[MagicMock]:
         client.connect.return_value = True
         client.available = True
         client.objects = {obj.id: obj for obj in DEFAULT_OBJECTS}
-        client.modules = {module.id: module for module in DEFAULT_MODULES}
         client.server_info = SERVER_INFO
-        client.mserv = client.modules[1]
-        client.access_tier = AccessTier.ADMIN
+        set_access_tier(client, AccessTier.ADMIN)
         client.fetch_scenes.return_value = list(DEFAULT_SCENES)
         client.fetch_rooms.return_value = dict(DEFAULT_ROOMS)
         client.resolve_records.return_value = EMPTY_SWEEP

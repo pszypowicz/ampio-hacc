@@ -374,8 +374,8 @@ class AmpioModuleSensor(AmpioPinnedEntity, SensorEntity):
     def native_value(self) -> float | None:
         """The reading, or None until the module broadcasts one.
 
-        ``.get()`` covers a row the catalogue dropped mid-session, whose
-        device the stale repair lists in the same pass.
+        ``module_row()`` covers a row the catalogue dropped mid-session,
+        whose device the stale repair lists in the same pass.
         """
         module = self._data.module_row(self._module_id)
         if module is None:

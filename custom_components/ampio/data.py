@@ -261,10 +261,13 @@ class AmpioData:
     def module_row(self, module_id: int) -> AmpioModule | None:
         """The module catalogue row for a Designer row id, or None.
 
-        Every module-catalogue read in this integration goes through here.
-        The M-SERV serves that catalogue to the reserved admin login alone,
-        and the library raises on a standard account rather than reading as
-        an install with no modules, so the tier test belongs in one place.
+        Every read after the hub build goes through here. ``async_create``
+        reads ``client.mserv`` on its own to build the hub, before this
+        instance exists to read it through. The M-SERV serves the catalogue
+        to the reserved admin login alone, and the library raises on a
+        standard account rather than reading as an install with no modules,
+        so the tier test belongs in one place for every read that can reach
+        it.
 
         None covers two cases that need the same answer. The account is not
         served the catalogue, or the row left it mid-session: Ampio Designer

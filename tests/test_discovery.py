@@ -600,7 +600,7 @@ async def test_module_row_reads_none_on_a_standard_account(
     mock_client: MagicMock,
     mock_config_entry: MockConfigEntry,
 ) -> None:
-    """The one gated read answers None instead of raising.
+    """The one gated read answers None instead of raising, tier denied.
 
     The M-SERV serves the module catalogue to the administrator login alone,
     so the library raises on a standard account. Every module-catalogue read
@@ -612,4 +612,20 @@ async def test_module_row_reads_none_on_a_standard_account(
 
     data = mock_config_entry.runtime_data
     assert data.module_row(17) is None
+
+
+async def test_module_row_reads_none_for_a_row_the_catalogue_lost(
+    hass: HomeAssistant,
+    mock_client: MagicMock,
+    mock_config_entry: MockConfigEntry,
+) -> None:
+    """The gated read answers None for a row missing from the catalogue too.
+
+    The administrator account is served the catalogue in full, so this
+    exercises the dict lookup rather than the tier gate: a row Ampio Designer
+    dropped mid-session answers the same None a denied account gets.
+    """
+    await setup_integration(hass, mock_config_entry)
+
+    data = mock_config_entry.runtime_data
     assert data.module_row(999) is None
