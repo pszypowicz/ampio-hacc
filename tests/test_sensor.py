@@ -40,6 +40,7 @@ from .conftest import (
     emit,
     make_object,
     pinned_id,
+    set_access_tier,
     unique_id,
 )
 
@@ -585,7 +586,7 @@ async def test_module_sensors_are_withheld_on_a_standard_account(
     entity_registry: er.EntityRegistry,
 ) -> None:
     """A standard account gets neither, and the withheld set names both."""
-    mock_client.access_tier = AccessTier.RESTRICTED
+    set_access_tier(mock_client, AccessTier.RESTRICTED)
 
     await setup_integration(hass, mock_config_entry)
 

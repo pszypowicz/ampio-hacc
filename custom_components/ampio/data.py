@@ -11,6 +11,7 @@ from ampio_mqtt import (
     AccessTier,
     AmpioClient,
     AmpioConnectionError,
+    AmpioModule,
     AmpioObject,
     AmpioServerInfo,
     ObjectRemoved,
@@ -201,13 +202,15 @@ class AmpioData:
         # decorates the model.
         device_registry = dr.async_get(hass)
         is_admin = client.access_tier is AccessTier.ADMIN
-        mserv = client.mserv
+        # The module catalogue answers the administrator login alone, so the
+        # read itself is gated rather than its result.
+        mserv = client.mserv if is_admin else None
         hub = device_registry.async_get_or_create(
             config_entry_id=entry.entry_id,
             identifiers={HUB_IDENTIFIER},
             manufacturer="Ampio",
             name="M-SERV",
-            model=mserv.model if is_admin and mserv and mserv.model else "M-SERV",
+            model=mserv.model if mserv and mserv.model else "M-SERV",
             sw_version=info.server_version,
             serial_number=info.device_id,
             configuration_url=f"http://{info.local_ip}" if info.local_ip else None,
@@ -254,6 +257,24 @@ class AmpioData:
             )
         return data
 
+    @callback
+    def module_row(self, module_id: int) -> AmpioModule | None:
+        """The module catalogue row for a Designer row id, or None.
+
+        Every module-catalogue read in this integration goes through here.
+        The M-SERV serves that catalogue to the reserved admin login alone,
+        and the library raises on a standard account rather than reading as
+        an install with no modules, so the tier test belongs in one place.
+
+        None covers two cases that need the same answer. The account is not
+        served the catalogue, or the row left it mid-session: Ampio Designer
+        deletes a device at once and only unassigns its objects, so a visible
+        object can sit on a row the catalogue no longer carries.
+        """
+        if not self.is_admin:
+            return None
+        return self.client.modules.get(module_id)
+
     def _module_name(self, module_id: int) -> str:
         """The installer's name when the catalogue has one, else the row.
 
@@ -268,10 +289,9 @@ class AmpioData:
         section, so between those two steps a visible object sits on a row
         with no catalogue entry.
         """
-        if self.is_admin:
-            module = self.client.modules.get(module_id)
-            if module is not None and module.nazwa_urzadzenia:
-                return module.nazwa_urzadzenia
+        module = self.module_row(module_id)
+        if module is not None and module.nazwa_urzadzenia:
+            return module.nazwa_urzadzenia
         return f"Ampio module {module_id}"
 
     @callback
@@ -296,7 +316,7 @@ class AmpioData:
             or module_id in self.module_device_ids
         ):
             return None
-        module = self.client.modules.get(module_id) if self.is_admin else None
+        module = self.module_row(module_id)
         device = dr.async_get(self.hass).async_get_or_create(
             config_entry_id=self.entry.entry_id,
             identifiers={module_identifier(module_id)},

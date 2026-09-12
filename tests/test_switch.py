@@ -26,7 +26,14 @@ from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 
 from . import setup_integration
-from .conftest import HUB_IDENTIFIER, MSENS_IDENTIFIER, emit, make_object, pinned_id
+from .conftest import (
+    HUB_IDENTIFIER,
+    MSENS_IDENTIFIER,
+    emit,
+    make_object,
+    pinned_id,
+    set_access_tier,
+)
 
 PLAIN_ENTITY_ID = pinned_id("switch", 74)
 OUTLET_ENTITY_ID = pinned_id("switch", 75)
@@ -239,9 +246,7 @@ async def test_leafless_server_object_parents_to_the_hub(
     it from any server-owned object whose leaf embeds the M-SERV mac.
     """
     if restricted:
-        mock_client.modules = {}
-        mock_client.mserv = None
-        mock_client.access_tier = AccessTier.RESTRICTED
+        set_access_tier(mock_client, AccessTier.RESTRICTED)
     mock_client.objects[99] = make_object(
         99, "przekaznik", 0, leaf_id="", id_urzadzenia=1, opis_menu="Pompa", state="0"
     )

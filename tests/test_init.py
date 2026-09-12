@@ -50,6 +50,7 @@ from .conftest import (
     emit,
     make_object,
     pinned_id,
+    set_access_tier,
     unique_id,
 )
 
@@ -256,9 +257,7 @@ async def test_restricted_account_groups_by_module_row(
     the name and the metadata differ from the administrator tier, and
     neither reaches an entity id.
     """
-    mock_client.modules = {}
-    mock_client.mserv = None
-    mock_client.access_tier = AccessTier.RESTRICTED
+    set_access_tier(mock_client, AccessTier.RESTRICTED)
 
     await setup_integration(hass, mock_config_entry)
     assert mock_config_entry.state is ConfigEntryState.LOADED

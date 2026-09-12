@@ -8,8 +8,8 @@ the same public surface the library exposes: the state properties and the
 
 from collections.abc import Generator
 from dataclasses import replace
-from typing import Any
-from unittest.mock import MagicMock, patch
+from typing import Any, Final
+from unittest.mock import MagicMock, PropertyMock, patch
 
 from ampio_mqtt import (
     AccessTier,
@@ -429,6 +429,42 @@ def emit(client: MagicMock, event: Any) -> None:
         if object_id is not None and event.object.id != object_id:
             continue
         listener(event)
+
+
+# The two client reads the M-SERV serves the administrator login alone. A
+# plain attribute on a mock reads as an empty catalogue, which is the state
+# the library stopped allowing, so the mock raises the way the library does.
+GATED_ON_ADMIN: Final = ("modules", "mserv")
+
+
+def set_access_tier(client: MagicMock, tier: AccessTier) -> None:
+    """Set the account tier on the mocked client, with the library's gate.
+
+    ``modules``, ``mserv``, and ``module_for()`` raise ``RuntimeError`` on a
+    standard account, because the M-SERV serves the module catalogue to the
+    reserved admin login alone. Every tier change in the suite goes through
+    here, so a read the integration forgets to gate fails a test instead of
+    reading as an install with no modules.
+
+    The property mock lands on the mock's own class, which ``patch`` builds
+    fresh for each test, so nothing leaks between tests.
+    """
+    client.access_tier = tier
+    for name in GATED_ON_ADMIN:
+        if name in vars(type(client)):
+            delattr(type(client), name)
+    if tier is AccessTier.ADMIN:
+        client.modules = {module.id: module for module in DEFAULT_MODULES}
+        client.mserv = client.modules[1]
+        client.module_for.side_effect = None
+        return
+    for name in GATED_ON_ADMIN:
+        setattr(
+            type(client),
+            name,
+            PropertyMock(side_effect=RuntimeError(f"{name} needs the admin login")),
+        )
+    client.module_for.side_effect = RuntimeError("module_for needs the admin login")
 
 
 @pytest.fixture

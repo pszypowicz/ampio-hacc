@@ -377,7 +377,7 @@ class AmpioModuleSensor(AmpioPinnedEntity, SensorEntity):
         ``.get()`` covers a row the catalogue dropped mid-session, whose
         device the stale repair lists in the same pass.
         """
-        module = self._data.client.modules.get(self._module_id)
+        module = self._data.module_row(self._module_id)
         if module is None:
             return None
         return self.entity_description.value_fn(module)

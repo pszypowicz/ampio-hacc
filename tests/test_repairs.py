@@ -19,7 +19,13 @@ from homeassistant.helpers import (
 from homeassistant.setup import async_setup_component
 
 from . import setup_integration
-from .conftest import DEFAULT_SCENES, MSENS_IDENTIFIER, pinned_id, unique_id
+from .conftest import (
+    DEFAULT_SCENES,
+    MSENS_IDENTIFIER,
+    pinned_id,
+    set_access_tier,
+    unique_id,
+)
 
 ISSUE_ID = "stale_records"
 ADMIN_ISSUE_ID = "admin_only_records"
@@ -101,7 +107,7 @@ async def test_restricted_account_gets_the_not_served_wording(
     """A restricted account cannot tell a delete from a grant change."""
     await setup_integration(hass, mock_config_entry)
     _leave_records_behind(mock_client)
-    mock_client.access_tier = AccessTier.RESTRICTED
+    set_access_tier(mock_client, AccessTier.RESTRICTED)
     await _reload(hass, mock_config_entry)
 
     issue = issue_registry.async_get_issue(DOMAIN, ISSUE_ID)
@@ -154,7 +160,7 @@ async def test_removing_the_entry_clears_both_issues(
     """The records go with the entry, so neither issue has anything left to fix."""
     await setup_integration(hass, mock_config_entry)
     _leave_records_behind(mock_client)
-    mock_client.access_tier = AccessTier.RESTRICTED
+    set_access_tier(mock_client, AccessTier.RESTRICTED)
     await _reload(hass, mock_config_entry)
     assert issue_registry.async_get_issue(DOMAIN, ISSUE_ID) is not None
     assert issue_registry.async_get_issue(DOMAIN, ADMIN_ISSUE_ID) is not None
@@ -267,7 +273,7 @@ async def test_downgrade_raises_the_admin_only_issue(
     await setup_integration(hass, mock_config_entry)
     assert issue_registry.async_get_issue(DOMAIN, ADMIN_ISSUE_ID) is None
 
-    mock_client.access_tier = AccessTier.RESTRICTED
+    set_access_tier(mock_client, AccessTier.RESTRICTED)
     await _reload(hass, mock_config_entry)
 
     issue = issue_registry.async_get_issue(DOMAIN, ADMIN_ISSUE_ID)
@@ -299,11 +305,11 @@ async def test_upgrade_clears_the_admin_only_issue(
     before = entity_registry.async_get(IDENTIFY_ENTITY_ID)
     assert before is not None
 
-    mock_client.access_tier = AccessTier.RESTRICTED
+    set_access_tier(mock_client, AccessTier.RESTRICTED)
     await _reload(hass, mock_config_entry)
     assert issue_registry.async_get_issue(DOMAIN, ADMIN_ISSUE_ID) is not None
 
-    mock_client.access_tier = AccessTier.ADMIN
+    set_access_tier(mock_client, AccessTier.ADMIN)
     await _reload(hass, mock_config_entry)
 
     assert issue_registry.async_get_issue(DOMAIN, ADMIN_ISSUE_ID) is None
@@ -322,7 +328,7 @@ async def test_the_two_issues_split_their_records(
     """A downgrade that also loses objects fills both cards, each with its own."""
     await setup_integration(hass, mock_config_entry)
     _leave_records_behind(mock_client)
-    mock_client.access_tier = AccessTier.RESTRICTED
+    set_access_tier(mock_client, AccessTier.RESTRICTED)
     await _reload(hass, mock_config_entry)
 
     admin_issue = issue_registry.async_get_issue(DOMAIN, ADMIN_ISSUE_ID)
@@ -356,7 +362,7 @@ async def test_admin_only_fix_leaves_the_other_records_alone(
     assert await async_setup_component(hass, "repairs", {})
     await setup_integration(hass, mock_config_entry)
     _leave_records_behind(mock_client)
-    mock_client.access_tier = AccessTier.RESTRICTED
+    set_access_tier(mock_client, AccessTier.RESTRICTED)
     await _reload(hass, mock_config_entry)
 
     await _submit_fix(hass, hass_client, ADMIN_ISSUE_ID)

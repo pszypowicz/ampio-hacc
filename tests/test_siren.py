@@ -37,7 +37,7 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.util import dt as dt_util
 
 from . import setup_integration
-from .conftest import emit, with_buzzer
+from .conftest import emit, set_access_tier, with_buzzer
 
 BUZZER_ENTITY_ID = "siren.ampio_module_17_buzzer"
 
@@ -313,7 +313,7 @@ async def test_withheld_enumeration_names_every_row(
     Designer dropped. A bare capability check would name none of them, and
     an orphaned buzzer record would land in the wrong repair card.
     """
-    mock_client.access_tier = AccessTier.RESTRICTED
+    set_access_tier(mock_client, AccessTier.RESTRICTED)
 
     await setup_integration(hass, mock_config_entry)
 
