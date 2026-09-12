@@ -5,12 +5,7 @@ from datetime import datetime
 import logging
 from typing import Any, Final, override
 
-from ampio_mqtt import (
-    AmpioConnectionError,
-    AmpioTimeoutError,
-    AvailabilityChanged,
-    ModuleFunction,
-)
+from ampio_mqtt import AmpioConnectionError, AmpioTimeoutError, ModuleFunction
 import voluptuous as vol
 
 from homeassistant.components.siren import (
@@ -22,14 +17,13 @@ from homeassistant.components.siren import (
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import entity_platform
-from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.event import async_call_later
 from homeassistant.helpers.typing import VolDictType
 
 from .const import DOMAIN
-from .data import AmpioConfigEntry, AmpioData, module_identifier
-from .entity import AmpioPinnedEntity
+from .data import AmpioConfigEntry, AmpioData
+from .entity import AmpioModuleEntity
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -96,7 +90,7 @@ async def async_setup_entry(
     )
 
 
-class AmpioBuzzer(AmpioPinnedEntity, SirenEntity):
+class AmpioBuzzer(AmpioModuleEntity, SirenEntity):
     """The piezo buzzer on an Ampio touch panel.
 
     The frame rides the CAN write tree, which answers the administrator
@@ -119,23 +113,10 @@ class AmpioBuzzer(AmpioPinnedEntity, SirenEntity):
     _attr_available_tones = list(range(1, 32))
 
     def __init__(self, data: AmpioData, module_id: int) -> None:
-        """Attach to the module device of Designer row ``module_id``."""
-        self._data = data
-        self._module_id = module_id
-        self._key = f"module_{module_id}_buzzer"
-        self._attr_unique_id = self._key
-        self._attr_device_info = DeviceInfo(identifiers={module_identifier(module_id)})
+        """Attach to the module device, silent and with no stop pending."""
+        super().__init__(data, module_id, key_suffix="buzzer")
         self._attr_is_on = False
         self._cancel_stop: Callable[[], None] | None = None
-
-    @override
-    async def async_added_to_hass(self) -> None:
-        """Follow the connection, which is the one thing availability reads."""
-        self.async_on_remove(
-            self._data.client.subscribe(
-                self._connection_changed, of=AvailabilityChanged
-            )
-        )
 
     @override
     async def async_will_remove_from_hass(self) -> None:
@@ -143,17 +124,6 @@ class AmpioBuzzer(AmpioPinnedEntity, SirenEntity):
         if self._attr_is_on:
             self._cancel_pending_stop()
             await self._async_silence()
-
-    @callback
-    def _connection_changed(self, event: AvailabilityChanged) -> None:
-        """Write state when the connection comes up or goes down."""
-        self.async_write_ha_state()
-
-    @property
-    @override
-    def available(self) -> bool:
-        """Available while the broker is connected."""
-        return self._data.client.available
 
     @override
     async def async_turn_on(self, **kwargs: Any) -> None:

@@ -4,14 +4,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Final, override
 
-from ampio_mqtt import (
-    AmpioModule,
-    AmpioObject,
-    AvailabilityChanged,
-    ModuleUpdated,
-    OutputKind,
-    SensorKind,
-)
+from ampio_mqtt import AmpioModule, AmpioObject, ModuleUpdated, OutputKind, SensorKind
 
 from homeassistant.components.sensor import (
     SensorDeviceClass,
@@ -31,12 +24,11 @@ from homeassistant.const import (
     UnitOfTime,
 )
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .button import is_button
-from .data import AmpioConfigEntry, AmpioData, module_identifier
-from .entity import AmpioEntity, AmpioPinnedEntity
+from .data import AmpioConfigEntry, AmpioData
+from .entity import AmpioEntity, AmpioModuleEntity
 from .light import is_light
 from .switch import is_switch
 from .units import device_class_for, state_class_for
@@ -314,7 +306,7 @@ class AmpioPulseTimeSensor(AmpioEntity, SensorEntity):
         return obj.pulse_ms
 
 
-class AmpioModuleSensor(AmpioPinnedEntity, SensorEntity):
+class AmpioModuleSensor(AmpioModuleEntity, SensorEntity):
     """A reading a module broadcasts about itself.
 
     The M-SERV serves the diagnostics broadcast to the administrator login
@@ -331,21 +323,16 @@ class AmpioModuleSensor(AmpioPinnedEntity, SensorEntity):
         module_id: int,
         description: AmpioModuleSensorEntityDescription,
     ) -> None:
-        """Attach to the module device of Designer row ``module_id``."""
-        self._data = data
-        self._module_id = module_id
-        self._key = f"module_{module_id}_{description.key}"
-        self._attr_unique_id = self._key
-        self._attr_device_info = DeviceInfo(identifiers={module_identifier(module_id)})
+        """Attach to the module device, and carry the reading's description."""
+        super().__init__(data, module_id, key_suffix=description.key)
         self.entity_description = description
 
     @override
     async def async_added_to_hass(self) -> None:
-        """Follow the module's own broadcasts, and the connection."""
-        client = self._data.client
-        self.async_on_remove(client.subscribe(self._module_updated, of=ModuleUpdated))
+        """Follow the module's own broadcasts, on top of the connection."""
+        await super().async_added_to_hass()
         self.async_on_remove(
-            client.subscribe(self._connection_changed, of=AvailabilityChanged)
+            self._data.client.subscribe(self._module_updated, of=ModuleUpdated)
         )
 
     @callback
@@ -357,17 +344,6 @@ class AmpioModuleSensor(AmpioPinnedEntity, SensorEntity):
         """
         if event.module.id == self._module_id:
             self.async_write_ha_state()
-
-    @callback
-    def _connection_changed(self, event: AvailabilityChanged) -> None:
-        """Write state when the connection comes up or goes down."""
-        self.async_write_ha_state()
-
-    @property
-    @override
-    def available(self) -> bool:
-        """Available while the broker is connected."""
-        return self._data.client.available
 
     @property
     @override
