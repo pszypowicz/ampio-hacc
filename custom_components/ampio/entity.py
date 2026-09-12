@@ -159,8 +159,9 @@ class AmpioModuleEntity(AmpioPinnedEntity):
 
     The key is the Designer row id. An object carries that same id in its
     own ``id_urzadzenia`` field on both account tiers, which is how the row
-    id survives a tier change. No module entity has a per-entity readback,
-    so availability can only track the connection.
+    id survives a tier change. Availability tracks the connection and nothing
+    else. A subclass whose surface reports something of its own overrides
+    ``available``.
     """
 
     def __init__(self, data: AmpioData, module_id: int, *, key_suffix: str) -> None:

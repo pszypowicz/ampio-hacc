@@ -101,7 +101,11 @@ class AmpioIdentifyButton(AmpioModuleEntity, ButtonEntity):
     _attr_entity_category = EntityCategory.DIAGNOSTIC
 
     def __init__(self, data: AmpioData, module_id: int) -> None:
-        """Attach to the module device, and start with no stop pending."""
+        """Attach to the module device, and start with no stop pending.
+
+        The identify frame is addressed by the Designer row id, which is the
+        fact that makes it the button's whole key.
+        """
         super().__init__(data, module_id, key_suffix="identify")
         self._cancel_stop: Callable[[], None] | None = None
 
