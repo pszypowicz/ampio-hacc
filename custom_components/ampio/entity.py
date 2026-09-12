@@ -12,12 +12,12 @@ from ampio_mqtt import (
 )
 
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers.device_registry import ChildDeviceInfo
+from homeassistant.helpers.device_registry import ChildDeviceInfo, DeviceInfo
 from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.entity_platform import EntityPlatform
 
 from .const import DOMAIN
-from .data import AmpioData
+from .data import AmpioData, module_identifier
 
 
 async def async_turn_on_honoring_pulse(
@@ -152,3 +152,47 @@ class AmpioEntity(AmpioPinnedEntity):
         """
         obj = self._object
         return self._data.client.available and obj is not None and obj.visible
+
+
+class AmpioModuleEntity(AmpioPinnedEntity):
+    """Entity that attaches to a module device rather than to an object.
+
+    The key is the Designer row id. An object carries that same id in its
+    own ``id_urzadzenia`` field on both account tiers, which is how the row
+    id survives a tier change. Availability tracks the connection and nothing
+    else. A subclass whose surface reports something of its own overrides
+    ``available``.
+    """
+
+    def __init__(self, data: AmpioData, module_id: int, *, key_suffix: str) -> None:
+        """Attach to the module device of Designer row ``module_id``.
+
+        ``key_suffix`` names what the entity does on the module, and it
+        lands in the unique id and the entity id alike, because the two are
+        the same string.
+        """
+        self._data = data
+        self._module_id = module_id
+        self._key = f"module_{module_id}_{key_suffix}"
+        self._attr_unique_id = self._key
+        self._attr_device_info = DeviceInfo(identifiers={module_identifier(module_id)})
+
+    @override
+    async def async_added_to_hass(self) -> None:
+        """Follow the connection, which is what availability reads."""
+        self.async_on_remove(
+            self._data.client.subscribe(
+                self._connection_changed, of=AvailabilityChanged
+            )
+        )
+
+    @callback
+    def _connection_changed(self, event: AvailabilityChanged) -> None:
+        """Write state when the connection comes up or goes down."""
+        self.async_write_ha_state()
+
+    @property
+    @override
+    def available(self) -> bool:
+        """Available while the broker is connected."""
+        return self._data.client.available

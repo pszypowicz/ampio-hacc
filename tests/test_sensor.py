@@ -258,7 +258,7 @@ async def test_hidden_object_becomes_unavailable(
 async def test_broker_availability_flips_entities(
     hass: HomeAssistant, mock_client: MagicMock, mock_config_entry: MockConfigEntry
 ) -> None:
-    """A broker disconnect flips every entity unavailable; reconnect restores."""
+    """A broker disconnect flips every object-backed sensor unavailable; reconnect restores."""
     await setup_integration(hass, mock_config_entry)
 
     mock_client.available = False
@@ -592,3 +592,21 @@ async def test_module_sensors_are_withheld_on_a_standard_account(
     assert entity_registry.async_get(MODULE_TEMPERATURE_ID) is None
     withheld = mock_config_entry.runtime_data.withheld_unique_ids()
     assert {"module_17_voltage", "module_17_temperature"} <= withheld
+
+
+@pytest.mark.usefixtures("sensor_only")
+async def test_module_sensor_follows_the_connection(
+    hass: HomeAssistant, mock_client: MagicMock, mock_config_entry: MockConfigEntry
+) -> None:
+    """The module sensor reads unavailable while the broker connection is down, and back."""
+    await setup_integration(hass, mock_config_entry)
+
+    mock_client.available = False
+    emit(mock_client, AvailabilityChanged(available=False))
+    await hass.async_block_till_done()
+    assert hass.states.get(MODULE_VOLTAGE_ID).state == STATE_UNAVAILABLE
+
+    mock_client.available = True
+    emit(mock_client, AvailabilityChanged(available=True))
+    await hass.async_block_till_done()
+    assert hass.states.get(MODULE_VOLTAGE_ID).state != STATE_UNAVAILABLE

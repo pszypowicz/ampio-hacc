@@ -5,24 +5,18 @@ from datetime import datetime
 import logging
 from typing import Final, override
 
-from ampio_mqtt import (
-    AmpioConnectionError,
-    AmpioObject,
-    AmpioTimeoutError,
-    AvailabilityChanged,
-)
+from ampio_mqtt import AmpioConnectionError, AmpioObject, AmpioTimeoutError
 
 from homeassistant.components.button import ButtonDeviceClass, ButtonEntity
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
-from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.event import async_call_later
 
 from .const import DOMAIN
-from .data import AmpioConfigEntry, AmpioData, module_identifier
-from .entity import AmpioEntity, AmpioPinnedEntity, async_turn_on_honoring_pulse
+from .data import AmpioConfigEntry, AmpioData
+from .entity import AmpioEntity, AmpioModuleEntity, async_turn_on_honoring_pulse
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -93,7 +87,7 @@ class AmpioButton(AmpioEntity, ButtonEntity):
         await async_turn_on_honoring_pulse(self._data.client, obj, self._object_id)
 
 
-class AmpioIdentifyButton(AmpioPinnedEntity, ButtonEntity):
+class AmpioIdentifyButton(AmpioModuleEntity, ButtonEntity):
     """Lights a module's CAN LED, so that the module can be found by eye.
 
     The Designer's "Identify device" button. The frame rides the CAN write
@@ -107,43 +101,19 @@ class AmpioIdentifyButton(AmpioPinnedEntity, ButtonEntity):
     _attr_entity_category = EntityCategory.DIAGNOSTIC
 
     def __init__(self, data: AmpioData, module_id: int) -> None:
-        """Attach to the module device of Designer row ``module_id``.
+        """Attach to the module device, and start with no stop pending.
 
-        The row id keys the module device on both account tiers, and it is
-        the id the library addresses the frame by, so it is the whole key.
+        The identify frame is addressed by the Designer row id, which is the
+        fact that makes it the button's whole key.
         """
-        self._data = data
-        self._module_id = module_id
-        self._key = f"module_{module_id}_identify"
-        self._attr_unique_id = self._key
-        self._attr_device_info = DeviceInfo(identifiers={module_identifier(module_id)})
+        super().__init__(data, module_id, key_suffix="identify")
         self._cancel_stop: Callable[[], None] | None = None
-
-    @override
-    async def async_added_to_hass(self) -> None:
-        """Follow the connection, which is the one thing the state reads."""
-        self.async_on_remove(
-            self._data.client.subscribe(
-                self._connection_changed, of=AvailabilityChanged
-            )
-        )
 
     @override
     async def async_will_remove_from_hass(self) -> None:
         """Send a pending stop now, so that an unload leaves no LED lit."""
         if self._cancel_pending_stop():
             await self._async_stop()
-
-    @callback
-    def _connection_changed(self, event: AvailabilityChanged) -> None:
-        """Write state when the connection comes up or goes down."""
-        self.async_write_ha_state()
-
-    @property
-    @override
-    def available(self) -> bool:
-        """Available while the broker is connected."""
-        return self._data.client.available
 
     @override
     async def async_press(self) -> None:
