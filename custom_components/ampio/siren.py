@@ -222,11 +222,13 @@ class AmpioBuzzer(AmpioModuleEntity, SirenEntity):
         self.async_write_ha_state()
 
     @callback
-    def _cancel_pending_stop(self) -> None:
-        """Cancel a scheduled stop, if one is waiting."""
-        if self._cancel_stop is not None:
-            self._cancel_stop()
-            self._cancel_stop = None
+    def _cancel_pending_stop(self) -> bool:
+        """Cancel a scheduled stop, and say whether one was pending."""
+        if self._cancel_stop is None:
+            return False
+        self._cancel_stop()
+        self._cancel_stop = None
+        return True
 
     async def _async_expire(self, _now: datetime | None = None) -> None:
         """Clear the state when a timed call has run its course."""
