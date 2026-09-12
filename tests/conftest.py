@@ -386,6 +386,7 @@ DEFAULT_MODULES = (
     AmpioModule(
         id=3,
         mac=48770,
+        mac_global=148770,
         nazwa_urzadzenia="MREL 3",
         typ_urzadzenia=4,
         wersja_softu=11000,
