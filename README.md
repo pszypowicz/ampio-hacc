@@ -11,16 +11,37 @@ A Home Assistant integration for the [Ampio Smart Home](https://ampio.com/) syst
 
 ## Platforms
 
-| Platform        | What you get                                                                                                                                                                         |
-| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `sensor`        | Temperature, humidity, pressure, CO2, air quality, illuminance, loudness, and every integer sensor slot, with the Designer unit where one is set (Modbus meters behind an M-CON-485) |
-| `binary_sensor` | Wired button inputs                                                                                                                                                                  |
-| `light`         | Dimmers, RGBW outputs, and relays tagged as lights in Ampio Designer                                                                                                                 |
-| `cover`         | Shutters and blinds, with position and slat tilt where the hardware has them                                                                                                         |
-| `switch`        | Remaining relays and Ampio flags, with the outlet class for plug-tagged ones                                                                                                         |
-| `button`        | Relays and flags marked as bell objects in Ampio Designer (a single press), and an Identify button on each module that lights its CAN LED (administrator login)                      |
-| `climate`       | Heating regulators with temperature readback and operating-mode presets                                                                                                              |
-| `scene`         | The Ampio app's scene catalog                                                                                                                                                        |
+| Platform        | What you get                                                                                                                                                                                                                                                                         |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `sensor`        | Temperature, humidity, pressure, CO2, air quality, illuminance, loudness, and every integer sensor slot, with the Designer unit where one is set (Modbus meters behind an M-CON-485), plus the supply voltage and temperature each module reports about itself (administrator login) |
+| `binary_sensor` | Wired button inputs                                                                                                                                                                                                                                                                  |
+| `light`         | Dimmers, RGBW outputs, and relays tagged as lights in Ampio Designer                                                                                                                                                                                                                 |
+| `cover`         | Shutters and blinds, with position and slat tilt where the hardware has them                                                                                                                                                                                                         |
+| `switch`        | Remaining relays and Ampio flags, with the outlet class for plug-tagged ones                                                                                                                                                                                                         |
+| `button`        | Relays and flags marked as bell objects in Ampio Designer (a single press), and an Identify button on each module that lights its CAN LED (administrator login)                                                                                                                      |
+| `climate`       | Heating regulators with temperature readback and operating-mode presets                                                                                                                                                                                                              |
+| `scene`         | The Ampio app's scene catalog                                                                                                                                                                                                                                                        |
+| `siren`         | The buzzer on each Ampio touch panel, with an `ampio.buzz_pattern` action for two-step sequences (administrator login)                                                                                                                                                               |
+
+## Actions
+
+`ampio.buzz_pattern` plays a two-step sequence on a panel's buzzer. The siren entity covers a single tone for a single length, and this action reaches the rest of what the hardware frame carries.
+
+Each cycle plays the first tone, then the second. Tone 0 is silence, so a doorbell of three pips is one tone, one silent step, and three cycles:
+
+```yaml
+action: ampio.buzz_pattern
+target:
+  entity_id: siren.ampio_module_12_buzzer
+data:
+  tone: 6
+  seconds: 0.3
+  tone2: 0
+  seconds2: 0.3
+  cycles: 3
+```
+
+Tones run from 0 to 31, and tone 6 is the loudest. Each step lasts up to 655.35 seconds, and `cycles` goes up to 254. Set `cycles` to 0 to repeat until you turn the siren off. Add `delay` to hold off before the first cycle starts, up to the same 655.35 second ceiling. It defaults to 0, a start with no wait. The action needs an administrator Ampio account, like the buzzer itself.
 
 ## Installation
 
@@ -44,7 +65,7 @@ Requires Home Assistant 2026.9.0 or newer. `ampio-mqtt` is installed automatical
 
 To change the address, the account, or the password later, open the entry and choose Reconfigure from its menu. Your devices and your entities keep their ids, their areas, and any name you gave them yourself. If the Ampio server rejects the stored password, Home Assistant asks you for a new one on its own.
 
-Devices appear as a hub for the M-SERV, one device per Ampio module, and one device per Ampio object under its module. An object device takes its name and its area from the Ampio app when Home Assistant creates it, and the integration never moves it afterwards. Every entity carries the id `<domain>.ampio_obj_<object id>`, and that id never changes. See [docs/devices.md](docs/devices.md) for the names, the areas, and what a change in Ampio Designer does.
+Devices appear as a hub for the M-SERV, one device per Ampio module, and one device per Ampio object under its module. An object device takes its name and its area from the Ampio app when Home Assistant creates it, and the integration never moves it afterwards. Every entity carries its own id, `<domain>.ampio_<unique id>`, and that id never changes. An object's entity reads `ampio_obj_<object id>`, and a module's reads `ampio_module_<row>_<name>`. See [docs/devices.md](docs/devices.md) for the names, the areas, and what a change in Ampio Designer does.
 
 One M-SERV per Home Assistant. Object ids are unique per server only, so the integration allows one entry.
 
@@ -67,7 +88,8 @@ If something else looks wrong, see [docs/faq.md](docs/faq.md). Each answer there
 ## Known limitations
 
 - Scenes are read once at setup. A scene added in the app needs a reload.
-- The Entity ID format setting under Settings, then System, does not apply. Every Ampio entity carries its own id, `<domain>.ampio_obj_<object id>`, so the setting cannot add the area or the floor to it.
+- A module's capability map is read once at setup too. A module you add in Ampio Designer afterward gets its sensors, but not its buzzer, until you reload the integration.
+- The Entity ID format setting under Settings, then System, does not apply. Every Ampio entity carries its own id, `<domain>.ampio_<unique id>`, whether that is `ampio_obj_<object id>` for an object or `ampio_module_<row>_<name>` for a module, so the setting cannot add the area or the floor to it.
 
 ## Relationship to home-assistant/core
 

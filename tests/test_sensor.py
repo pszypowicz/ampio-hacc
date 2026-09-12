@@ -7,8 +7,10 @@ from unittest.mock import MagicMock, patch
 from ampio_mqtt import (
     SENSOR_KIND_KEY_PREFIXES,
     SENSOR_KIND_KEYS,
+    AccessTier,
     AmpioObject,
     AvailabilityChanged,
+    ModuleUpdated,
     ObjectRemoved,
     ObjectUpdated,
 )
@@ -34,7 +36,7 @@ from . import setup_integration
 from .conftest import (
     HUB_IDENTIFIER,
     MSENS_IDENTIFIER,
-    MSENS_MAC_NAME,
+    MSENS_ROW_NAME,
     emit,
     make_object,
     pinned_id,
@@ -336,7 +338,7 @@ async def test_unexposable_objects_are_skipped(
     entities = er.async_entries_for_config_entry(
         entity_registry, mock_config_entry.entry_id
     )
-    assert len(entities) == 13
+    assert len(entities) == 15
 
 
 @pytest.mark.parametrize(
@@ -409,7 +411,7 @@ async def test_module_without_catalogue_row_gets_bare_device(
         (DOMAIN, "module:99"), mock_config_entry.entry_id
     )
     assert device is not None
-    assert device.name == "Ampio module 0xDEAD"
+    assert device.name == "Ampio module 99"
     assert device.model is None
     entity_id = entity_registry.async_get_entity_id(
         Platform.SENSOR, DOMAIN, unique_id(500)
@@ -424,49 +426,30 @@ async def test_module_without_catalogue_row_gets_bare_device(
 
 
 @pytest.mark.parametrize(
-    ("changes", "strip_leaf_ids", "expected_name", "expected_model"),
+    ("changes", "expected_name", "expected_model"),
     [
         pytest.param(
             {"nazwa_urzadzenia": None},
-            False,
-            MSENS_MAC_NAME,
+            MSENS_ROW_NAME,
             "M-SENS",
             id="nameless-module",
         ),
-        # The device_id join key is volatile across resyncs; the leaf-derived
-        # mac is authoritative, so a disagreeing row must not misattribute
-        # another module's metadata to this device.
-        pytest.param({"mac": 99999}, False, MSENS_MAC_NAME, None, id="disagreeing-mac"),
-        # Designer cleared the leaf on every object of the row, so no mac is
-        # left to name the device and the row id is what remains. The
-        # catalogue join still stands: it is gated on a leaf mac the objects
-        # no longer carry.
-        pytest.param(
-            {"nazwa_urzadzenia": None},
-            True,
-            "Ampio module 17",
-            "M-SENS",
-            id="no-leaf-mac",
-        ),
+        # The catalogue row joins on the row id alone, so its name and
+        # model apply whatever address it carries.
+        pytest.param({"mac": 99999}, "m-sens salon", "M-SENS", id="disagreeing-mac"),
     ],
 )
-async def test_module_name_falls_back_to_mac(
+async def test_module_name_follows_the_catalogue(
     hass: HomeAssistant,
     mock_client: MagicMock,
     mock_config_entry: MockConfigEntry,
     device_registry: dr.DeviceRegistry,
     changes: dict[str, int | None],
-    strip_leaf_ids: bool,
     expected_name: str,
     expected_model: str | None,
 ) -> None:
-    """A row that names nothing leaves the device on its mac, then on its row id."""
+    """A nameless row falls back to its row id."""
     mock_client.modules[17] = replace(mock_client.modules[17], **changes)
-    if strip_leaf_ids:
-        mock_client.objects = {
-            oid: replace(obj, leaf_id="") if obj.id_urzadzenia == 17 else obj
-            for oid, obj in mock_client.objects.items()
-        }
 
     await setup_integration(hass, mock_config_entry)
 
@@ -476,6 +459,33 @@ async def test_module_name_falls_back_to_mac(
     assert device is not None
     assert device.name == expected_name
     assert device.model == expected_model
+
+
+@pytest.mark.usefixtures("sensor_only")
+async def test_module_row_missing_from_the_catalogue(
+    hass: HomeAssistant,
+    mock_client: MagicMock,
+    mock_config_entry: MockConfigEntry,
+    device_registry: dr.DeviceRegistry,
+) -> None:
+    """A visible object on a row the catalogue lacks still gets its device.
+
+    Ampio Designer deletes a device at once and only unassigns its objects
+    into a collapsed UNGROUPED section, so a visible object can point at a
+    row that no longer exists. The device takes the row id and no
+    decoration, rather than costing the whole setup.
+    """
+    del mock_client.modules[17]
+
+    await setup_integration(hass, mock_config_entry)
+
+    module = device_registry.async_get_device_by_identifier(
+        MSENS_IDENTIFIER, mock_config_entry.entry_id
+    )
+    assert module is not None
+    assert module.name == MSENS_ROW_NAME
+    assert module.model is None
+    assert module.serial_number is None
 
 
 async def test_pulse_time_diagnostic(
@@ -508,3 +518,78 @@ async def test_pulse_time_diagnostic(
             )
             is None
         )
+
+
+MODULE_VOLTAGE_ID = "sensor.ampio_module_17_voltage"
+MODULE_TEMPERATURE_ID = "sensor.ampio_module_17_temperature"
+
+
+@pytest.mark.usefixtures("sensor_only")
+async def test_module_sensors_read_unknown_until_a_broadcast(
+    hass: HomeAssistant,
+    mock_client: MagicMock,
+    mock_config_entry: MockConfigEntry,
+) -> None:
+    """Both exist on every module device, and read nothing until one arrives.
+
+    The broker does not replay the diagnostics frame at connect, so a
+    module that has not broadcast yet has no reading and a module that
+    never broadcasts never gets one.
+    """
+    await setup_integration(hass, mock_config_entry)
+
+    for entity_id in (MODULE_VOLTAGE_ID, MODULE_TEMPERATURE_ID):
+        state = hass.states.get(entity_id)
+        assert state is not None
+        assert state.state == STATE_UNKNOWN
+
+    mock_client.modules[17] = replace(
+        mock_client.modules[17], supply_voltage=12.4, temperature=36.0
+    )
+    emit(mock_client, ModuleUpdated(module=mock_client.modules[17]))
+    await hass.async_block_till_done()
+
+    assert hass.states.get(MODULE_VOLTAGE_ID).state == "12.4"
+    assert hass.states.get(MODULE_TEMPERATURE_ID).state == "36.0"
+
+
+@pytest.mark.usefixtures("sensor_only")
+async def test_module_sensor_ignores_another_module(
+    hass: HomeAssistant,
+    mock_client: MagicMock,
+    mock_config_entry: MockConfigEntry,
+) -> None:
+    """A broadcast from a different module leaves this one alone.
+
+    The client's subscribe filters by object id and nothing else, so each
+    sensor compares the module id itself. Module 17's own reading is set
+    without emitting anything, so a guard that fails to compare the id
+    would write it into the state a spurious event triggers.
+    """
+    await setup_integration(hass, mock_config_entry)
+
+    mock_client.modules[17] = replace(mock_client.modules[17], supply_voltage=12.4)
+    other = replace(mock_client.modules[3], supply_voltage=11.9)
+    mock_client.modules[3] = other
+    emit(mock_client, ModuleUpdated(module=other))
+    await hass.async_block_till_done()
+
+    assert hass.states.get(MODULE_VOLTAGE_ID).state == STATE_UNKNOWN
+
+
+@pytest.mark.usefixtures("sensor_only")
+async def test_module_sensors_are_withheld_on_a_standard_account(
+    hass: HomeAssistant,
+    mock_client: MagicMock,
+    mock_config_entry: MockConfigEntry,
+    entity_registry: er.EntityRegistry,
+) -> None:
+    """A standard account gets neither, and the withheld set names both."""
+    mock_client.access_tier = AccessTier.RESTRICTED
+
+    await setup_integration(hass, mock_config_entry)
+
+    assert entity_registry.async_get(MODULE_VOLTAGE_ID) is None
+    assert entity_registry.async_get(MODULE_TEMPERATURE_ID) is None
+    withheld = mock_config_entry.runtime_data.withheld_unique_ids()
+    assert {"module_17_voltage", "module_17_temperature"} <= withheld

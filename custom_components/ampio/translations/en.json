@@ -90,6 +90,14 @@
             },
             "pulse_time": {
                 "name": "Pulse time"
+            },
+            "supply_voltage": {
+                "name": "Supply voltage"
+            }
+        },
+        "siren": {
+            "buzzer": {
+                "name": "Buzzer"
             }
         },
         "switch": {
@@ -99,6 +107,15 @@
         }
     },
     "exceptions": {
+        "buzz_duration_too_long": {
+            "message": "A buzzer pattern step cannot last longer than {maximum} seconds."
+        },
+        "buzzer_command_failed": {
+            "message": "The Ampio server did not confirm the buzzer command."
+        },
+        "buzzer_stop_failed": {
+            "message": "The Ampio server did not confirm the buzzer stop, so the panel may still be sounding."
+        },
         "cannot_connect": {
             "message": "Cannot connect to the Ampio server."
         },
@@ -109,10 +126,13 @@
             "message": "The Ampio server rejected the stored credentials."
         },
         "module_not_addressable": {
-            "message": "The Ampio server lists no address for this module, so the identify frame cannot be sent."
+            "message": "The Ampio server lists no address for this module, so the frame cannot be sent."
         },
         "read_only_object": {
             "message": "This object is marked read-only in Ampio Designer, and the server drops every write to it."
+        },
+        "records_unavailable": {
+            "message": "Connected to the Ampio server, but it did not answer the module description request."
         }
     },
     "issues": {
@@ -155,6 +175,38 @@
                         "title": "Delete the stale Ampio records",
                         "description": "Home Assistant still lists {count} Ampio devices or entities that the Ampio account of this integration is not served:\n\n{names}\n\nIf you deleted them in Ampio Designer, Submit deletes these records from Home Assistant. Automations and dashboards that name them stop working. Nothing changes on the Ampio server. If the account lost access to them, do not submit. Restore the access in the Ampio app, then reload the integration."
                     }
+                }
+            }
+        }
+    },
+    "services": {
+        "buzz_pattern": {
+            "name": "Play a buzzer pattern",
+            "description": "Sounds a two-step sequence on a panel's buzzer. Each cycle plays the first tone, then the second. Tone 0 is silence, so three pips are one tone, one silent step, and three cycles.",
+            "fields": {
+                "tone": {
+                    "name": "Tone",
+                    "description": "Pitch of the first step, 0 to 31. Tone 6 is the loudest, and tone 0 is silence."
+                },
+                "seconds": {
+                    "name": "Length",
+                    "description": "How long the first step sounds, in seconds, up to 655.35."
+                },
+                "tone2": {
+                    "name": "Second tone",
+                    "description": "Pitch of the second step. Leave it at 0 for a silent gap."
+                },
+                "seconds2": {
+                    "name": "Second length",
+                    "description": "How long the second step lasts, in seconds, up to 655.35."
+                },
+                "cycles": {
+                    "name": "Cycles",
+                    "description": "How many times to repeat the two steps, up to 254. 0 repeats until you turn the siren off."
+                },
+                "delay": {
+                    "name": "Delay",
+                    "description": "How long to wait before the first step, in seconds, up to 655.35."
                 }
             }
         }

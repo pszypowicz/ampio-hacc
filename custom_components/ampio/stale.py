@@ -3,8 +3,6 @@
 from collections.abc import Iterable
 from dataclasses import dataclass
 
-from ampio_mqtt import AccessTier
-
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import (
     device_registry as dr,
@@ -124,7 +122,7 @@ def async_report_stale_records(hass: HomeAssistant, entry: AmpioConfigEntry) -> 
         "admin_only_records",
         _record_names([], stale.withheld),
     )
-    if entry.runtime_data.client.access_tier is AccessTier.ADMIN:
+    if entry.runtime_data.is_admin:
         translation_key = "stale_records_deleted"
     else:
         translation_key = "stale_records_not_served"

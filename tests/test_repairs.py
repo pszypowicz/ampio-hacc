@@ -276,8 +276,12 @@ async def test_downgrade_raises_the_admin_only_issue(
     assert issue.severity is ir.IssueSeverity.WARNING
     assert issue.translation_key == "admin_only_records"
     assert issue.translation_placeholders == {
-        "count": "1",
-        "names": "- button.ampio_module_17_identify",
+        "count": "3",
+        "names": (
+            "- button.ampio_module_17_identify\n"
+            "- sensor.ampio_module_17_temperature\n"
+            "- sensor.ampio_module_17_voltage"
+        ),
     }
     # Nothing else went, so the other card stays away.
     assert issue_registry.async_get_issue(DOMAIN, ISSUE_ID) is None
@@ -324,8 +328,12 @@ async def test_the_two_issues_split_their_records(
     admin_issue = issue_registry.async_get_issue(DOMAIN, ADMIN_ISSUE_ID)
     assert admin_issue is not None
     assert admin_issue.translation_placeholders == {
-        "count": "1",
-        "names": "- button.ampio_module_17_identify",
+        "count": "3",
+        "names": (
+            "- button.ampio_module_17_identify\n"
+            "- sensor.ampio_module_17_temperature\n"
+            "- sensor.ampio_module_17_voltage"
+        ),
     }
     stale_issue = issue_registry.async_get_issue(DOMAIN, ISSUE_ID)
     assert stale_issue is not None

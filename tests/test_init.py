@@ -44,7 +44,7 @@ from .conftest import (
     HUB_IDENTIFIER,
     MSENS_DEVICE_NAME,
     MSENS_IDENTIFIER,
-    MSENS_MAC_NAME,
+    MSENS_ROW_NAME,
     MSERV_MAC,
     USER_INPUT,
     emit,
@@ -222,6 +222,25 @@ async def test_hub_device(
     assert module.via_device_id == hub.id
 
 
+async def test_hub_model_falls_back_when_the_catalogue_has_none(
+    hass: HomeAssistant,
+    mock_client: MagicMock,
+    mock_config_entry: MockConfigEntry,
+    device_registry: dr.DeviceRegistry,
+) -> None:
+    """An administrator whose M-SERV row resolves to no model still gets the product name."""
+    mock_client.mserv = replace(mock_client.mserv, typ_urzadzenia=99999)
+    assert mock_client.mserv.model is None
+
+    await setup_integration(hass, mock_config_entry)
+
+    hub = device_registry.async_get_device_by_identifier(
+        HUB_IDENTIFIER, mock_config_entry.entry_id
+    )
+    assert hub is not None
+    assert hub.model == "M-SERV"
+
+
 async def test_restricted_account_groups_by_module_row(
     hass: HomeAssistant,
     mock_client: MagicMock,
@@ -233,9 +252,9 @@ async def test_restricted_account_groups_by_module_row(
 
     A standard (non-administrator) account is served the object catalogue
     but no module list. The device tree builds from the Designer module row
-    id, and the module device falls back to a mac-derived name. Only the
-    name and the metadata differ from the administrator tier, and neither
-    reaches an entity id.
+    id, and the module device falls back to that row id as its name. Only
+    the name and the metadata differ from the administrator tier, and
+    neither reaches an entity id.
     """
     mock_client.modules = {}
     mock_client.mserv = None
@@ -256,7 +275,7 @@ async def test_restricted_account_groups_by_module_row(
         MSENS_IDENTIFIER, mock_config_entry.entry_id
     )
     assert module is not None
-    assert module.name == MSENS_MAC_NAME
+    assert module.name == MSENS_ROW_NAME
     assert module.model is None
     assert module.via_device_id == hub.id
 
@@ -341,7 +360,7 @@ async def test_tier_switch_keeps_entity_ids(
     )
     assert downgraded is not None
     assert downgraded.id == module.id
-    assert downgraded.name == MSENS_MAC_NAME
+    assert downgraded.name == MSENS_ROW_NAME
     assert downgraded.model is None
     assert {
         entity.entity_id: entity.device_id
@@ -624,24 +643,22 @@ async def test_sweep_never_moves_an_entity(
     assert entity_registry.async_get_entity_id("light", DOMAIN, unique_id(74)) is None
 
 
-async def test_resolve_failure_degrades(
+async def test_failed_sweep_stops_setup(
     hass: HomeAssistant,
     mock_client: MagicMock,
     mock_config_entry: MockConfigEntry,
-    caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """A failed description sweep logs one warning and setup still succeeds."""
+    """The sweep is a setup input now, so a failure retries rather than degrades.
+
+    The capability map it fills decides which modules get a buzzer. A
+    background pass nobody waited for would build none of them and leave
+    their records in the wrong repair card.
+    """
     mock_client.resolve_records.side_effect = AmpioTimeoutError("no reply")
+
     await setup_integration(hass, mock_config_entry)
 
-    assert mock_config_entry.state is ConfigEntryState.LOADED
-    warnings = [
-        record
-        for record in caplog.records
-        if record.levelname == "WARNING"
-        and "Designer descriptions" in record.getMessage()
-    ]
-    assert len(warnings) == 1
+    assert mock_config_entry.state is ConfigEntryState.SETUP_RETRY
 
 
 async def test_admin_records_never_seed_an_area(
