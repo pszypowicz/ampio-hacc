@@ -45,6 +45,7 @@ from .conftest import (
     make_object,
     module_pinned_id,
     pinned_id,
+    set_access_tier,
     unique_id,
 )
 
@@ -145,9 +146,7 @@ async def test_new_module_row_gets_a_device_on_a_restricted_account(
     device_registry: dr.DeviceRegistry,
 ) -> None:
     """A row the tree has not met yet gets its module device before its child."""
-    mock_client.modules = {}
-    mock_client.mserv = None
-    mock_client.access_tier = AccessTier.RESTRICTED
+    set_access_tier(mock_client, AccessTier.RESTRICTED)
     await setup_integration(hass, mock_config_entry)
 
     await _add(
@@ -354,7 +353,7 @@ async def test_removed_object_is_listed_by_the_repair(
     issue_registry: ir.IssueRegistry,
 ) -> None:
     """The repair lists a removed object within one batch, and a re-add clears it."""
-    mock_client.access_tier = AccessTier.RESTRICTED
+    set_access_tier(mock_client, AccessTier.RESTRICTED)
     await setup_integration(hass, mock_config_entry)
     assert issue_registry.async_get_issue(DOMAIN, ISSUE_ID) is None
 
@@ -515,7 +514,7 @@ async def test_gated_module_factory_stays_withheld_on_a_restricted_account(
     empty is the entities a gated registration hands to Home Assistant,
     both at registration and in a later batch.
     """
-    mock_client.access_tier = AccessTier.RESTRICTED
+    set_access_tier(mock_client, AccessTier.RESTRICTED)
     await setup_integration(hass, mock_config_entry)
     data: AmpioData = mock_config_entry.runtime_data
     platform = MagicMock(spec=EntityPlatform)
@@ -594,3 +593,39 @@ async def test_deleted_module_device_comes_back_with_its_row(
     assert hass.states.get(NEW_INPUT_ENTITY_ID).state == STATE_OFF
     assert hass.states.get(button_id) is not None
     assert not [record for record in caplog.records if record.levelno >= logging.ERROR]
+
+
+async def test_module_row_reads_none_on_a_standard_account(
+    hass: HomeAssistant,
+    mock_client: MagicMock,
+    mock_config_entry: MockConfigEntry,
+) -> None:
+    """The one gated read answers None instead of raising, tier denied.
+
+    The M-SERV serves the module catalogue to the administrator login alone,
+    so the library raises on a standard account. Every module-catalogue read
+    in the integration goes through this method, which is why the tier test
+    lives here and nowhere else.
+    """
+    set_access_tier(mock_client, AccessTier.RESTRICTED)
+    await setup_integration(hass, mock_config_entry)
+
+    data = mock_config_entry.runtime_data
+    assert data.module_row(17) is None
+
+
+async def test_module_row_reads_none_for_a_row_the_catalogue_lost(
+    hass: HomeAssistant,
+    mock_client: MagicMock,
+    mock_config_entry: MockConfigEntry,
+) -> None:
+    """The gated read answers None for a row missing from the catalogue too.
+
+    The administrator account is served the catalogue in full, so this
+    exercises the dict lookup rather than the tier gate: a row Ampio Designer
+    dropped mid-session answers the same None a denied account gets.
+    """
+    await setup_integration(hass, mock_config_entry)
+
+    data = mock_config_entry.runtime_data
+    assert data.module_row(999) is None

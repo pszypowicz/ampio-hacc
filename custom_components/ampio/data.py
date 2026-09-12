@@ -11,6 +11,7 @@ from ampio_mqtt import (
     AccessTier,
     AmpioClient,
     AmpioConnectionError,
+    AmpioModule,
     AmpioObject,
     AmpioServerInfo,
     ObjectRemoved,
@@ -124,11 +125,6 @@ class _ModulePlatformRegistration:
     admin_only: bool = False
 
 
-def _opt_str(value: object | None) -> str | None:
-    """Stringify a catalogue field, passing None through."""
-    return None if value is None else str(value)
-
-
 class AmpioData:
     """Runtime data for one Ampio server: the device tree the catalogue defines.
 
@@ -201,13 +197,15 @@ class AmpioData:
         # decorates the model.
         device_registry = dr.async_get(hass)
         is_admin = client.access_tier is AccessTier.ADMIN
-        mserv = client.mserv
+        # The module catalogue answers the administrator login alone, so the
+        # read itself is gated rather than its result.
+        mserv = client.mserv if is_admin else None
         hub = device_registry.async_get_or_create(
             config_entry_id=entry.entry_id,
             identifiers={HUB_IDENTIFIER},
             manufacturer="Ampio",
             name="M-SERV",
-            model=mserv.model if is_admin and mserv and mserv.model else "M-SERV",
+            model=mserv.model if mserv and mserv.model else "M-SERV",
             sw_version=info.server_version,
             serial_number=info.device_id,
             configuration_url=f"http://{info.local_ip}" if info.local_ip else None,
@@ -221,9 +219,7 @@ class AmpioData:
         # split vote goes to the row most objects name, and ties to the first
         # one seen.
         server_rows = Counter(
-            obj.id_urzadzenia
-            for obj in eligible_objects(client)
-            if obj.is_server_owned and obj.id_urzadzenia is not None
+            obj.id_urzadzenia for obj in eligible_objects(client) if obj.is_server_owned
         )
         mserv_id: int | None = None
         if server_rows:
@@ -236,7 +232,7 @@ class AmpioData:
         module_reps: dict[int, AmpioObject] = {}
         for obj in eligible_objects(client):
             module_id = obj.id_urzadzenia
-            if obj.is_server_owned or module_id is None or module_id == mserv_id:
+            if obj.is_server_owned or module_id == mserv_id:
                 continue
             module_reps.setdefault(module_id, obj)
         for rep in module_reps.values():
@@ -254,6 +250,27 @@ class AmpioData:
             )
         return data
 
+    @callback
+    def module_row(self, module_id: int) -> AmpioModule | None:
+        """The module catalogue row for a Designer row id, or None.
+
+        Every read after the hub build goes through here. ``async_create``
+        reads ``client.mserv`` on its own to build the hub, before this
+        instance exists to read it through. The M-SERV serves the catalogue
+        to the reserved admin login alone, and the library raises on a
+        standard account rather than reading as an install with no modules,
+        so the tier test belongs in one place for every read that can reach
+        it.
+
+        None covers two cases that need the same answer. The account is not
+        served the catalogue, or the row left it mid-session: Ampio Designer
+        deletes a device at once and only unassigns its objects, so a visible
+        object can sit on a row the catalogue no longer carries.
+        """
+        if not self.is_admin:
+            return None
+        return self.client.modules.get(module_id)
+
     def _module_name(self, module_id: int) -> str:
         """The installer's name when the catalogue has one, else the row.
 
@@ -268,10 +285,9 @@ class AmpioData:
         section, so between those two steps a visible object sits on a row
         with no catalogue entry.
         """
-        if self.is_admin:
-            module = self.client.modules.get(module_id)
-            if module is not None and module.nazwa_urzadzenia:
-                return module.nazwa_urzadzenia
+        module = self.module_row(module_id)
+        if module is not None and module.nazwa_urzadzenia:
+            return module.nazwa_urzadzenia
         return f"Ampio module {module_id}"
 
     @callback
@@ -291,12 +307,11 @@ class AmpioData:
         module_id = obj.id_urzadzenia
         if (
             obj.is_server_owned
-            or module_id is None
             or module_id == self.mserv_id
             or module_id in self.module_device_ids
         ):
             return None
-        module = self.client.modules.get(module_id) if self.is_admin else None
+        module = self.module_row(module_id)
         device = dr.async_get(self.hass).async_get_or_create(
             config_entry_id=self.entry.entry_id,
             identifiers={module_identifier(module_id)},
@@ -304,9 +319,9 @@ class AmpioData:
             manufacturer="Ampio",
             via_device_id=self.hub_device_id,
             model=module.model if module else None,
-            sw_version=_opt_str(module.wersja_softu) if module else None,
-            hw_version=_opt_str(module.wersja_pcb) if module else None,
-            serial_number=_opt_str(module.mac_global) if module else None,
+            sw_version=str(module.wersja_softu) if module else None,
+            hw_version=str(module.wersja_pcb) if module else None,
+            serial_number=str(module.mac_global) if module else None,
         )
         self.module_device_ids[module_id] = device.id
         return module_id
@@ -570,7 +585,7 @@ class AmpioData:
         M-SERV's own objects sit on the hub.
         """
         module_id = obj.id_urzadzenia
-        if obj.is_server_owned or module_id is None or module_id == self.mserv_id:
+        if obj.is_server_owned or module_id == self.mserv_id:
             return self.hub_device_id
         return self.module_device_ids.get(module_id, self.hub_device_id)
 
@@ -588,7 +603,7 @@ class AmpioData:
         expected_parent: dict[tuple[str, str], str] = {}
         for obj in eligible_objects(self.client):
             parent = self.parent_for(obj)
-            if parent != self.hub_device_id and obj.id_urzadzenia is not None:
+            if parent != self.hub_device_id:
                 live.add(module_identifier(obj.id_urzadzenia))
             live.add((DOMAIN, obj.object_key))
             expected_parent[(DOMAIN, obj.object_key)] = parent

@@ -37,6 +37,7 @@ from .conftest import (
     make_object,
     module_pinned_id,
     pinned_id,
+    set_access_tier,
     unique_id,
 )
 
@@ -221,7 +222,7 @@ async def test_identify_is_withheld_on_a_standard_account(
     administrator login alone. An entity that could never send it is not
     built at all.
     """
-    mock_client.access_tier = AccessTier.RESTRICTED
+    set_access_tier(mock_client, AccessTier.RESTRICTED)
 
     await setup_integration(hass, mock_config_entry)
 

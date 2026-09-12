@@ -40,6 +40,7 @@ from .conftest import (
     emit,
     make_object,
     pinned_id,
+    set_access_tier,
     unique_id,
 )
 
@@ -344,8 +345,6 @@ async def test_unexposable_objects_are_skipped(
 @pytest.mark.parametrize(
     ("leaf_id", "id_urzadzenia"),
     [
-        # A row naming no module has no module device to hang under.
-        pytest.param("0_nomac_temp_0_1", None, id="no-module-row"),
         # The M-SERV's own leaf outranks whatever row the object carries.
         pytest.param("0_1_temp_0_1", 17, id="server-owned"),
     ],
@@ -357,9 +356,9 @@ async def test_hub_anchored_objects(
     device_registry: dr.DeviceRegistry,
     entity_registry: er.EntityRegistry,
     leaf_id: str,
-    id_urzadzenia: int | None,
+    id_urzadzenia: int,
 ) -> None:
-    """The M-SERV's own objects and rows naming no module get a child of the hub."""
+    """The M-SERV's own objects get a child of the hub."""
     mock_client.objects[500] = make_object(
         500,
         "temp",
@@ -585,7 +584,7 @@ async def test_module_sensors_are_withheld_on_a_standard_account(
     entity_registry: er.EntityRegistry,
 ) -> None:
     """A standard account gets neither, and the withheld set names both."""
-    mock_client.access_tier = AccessTier.RESTRICTED
+    set_access_tier(mock_client, AccessTier.RESTRICTED)
 
     await setup_integration(hass, mock_config_entry)
 

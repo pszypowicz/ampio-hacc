@@ -76,7 +76,7 @@ def build_buzzers(data: AmpioData, module_id: int) -> list[AmpioBuzzer]:
     """
     if not data.is_admin:
         return [AmpioBuzzer(data, module_id)]
-    module = data.client.modules.get(module_id)
+    module = data.module_row(module_id)
     if module is None or ModuleFunction.BUZZER not in module.capabilities:
         return []
     return [AmpioBuzzer(data, module_id)]
