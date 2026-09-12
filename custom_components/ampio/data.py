@@ -125,11 +125,6 @@ class _ModulePlatformRegistration:
     admin_only: bool = False
 
 
-def _opt_str(value: object | None) -> str | None:
-    """Stringify a catalogue field, passing None through."""
-    return None if value is None else str(value)
-
-
 class AmpioData:
     """Runtime data for one Ampio server: the device tree the catalogue defines.
 
@@ -327,9 +322,9 @@ class AmpioData:
             manufacturer="Ampio",
             via_device_id=self.hub_device_id,
             model=module.model if module else None,
-            sw_version=_opt_str(module.wersja_softu) if module else None,
-            hw_version=_opt_str(module.wersja_pcb) if module else None,
-            serial_number=_opt_str(module.mac_global) if module else None,
+            sw_version=str(module.wersja_softu) if module else None,
+            hw_version=str(module.wersja_pcb) if module else None,
+            serial_number=str(module.mac_global) if module else None,
         )
         self.module_device_ids[module_id] = device.id
         return module_id
